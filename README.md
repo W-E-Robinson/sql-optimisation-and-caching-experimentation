@@ -22,7 +22,6 @@ erDiagram
         varchar given_name
         varchar family_name
         varchar username
-        varchar password
         varchar email
         varchar phone
         timestamp created_at
