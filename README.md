@@ -1,3 +1,16 @@
+- [Intro](#intro)
+- [Schema](#schema)
+- [Indices](#indices)
+- [Views](#views)
+- [Caching](#caching)
+- [Optimisation Benchmarking](#optimisation-benchmarking)
+- [Cache Testing](#cache-testing)
+
+## Intro
+This repo was my experimenting with SQL optimisation and code level caching.
+A simple banking PostgreSQL database is used with Rust for programming.
+
+## Schema
 ```mermaid
 erDiagram
     users ||--o{ accounts : has
@@ -87,3 +100,8 @@ erDiagram
         timestamp timestamp
     }
 ```
+## Indices
+## Views
+## Caching
+## Optimisation Benchmarking
+## Cache Testing
