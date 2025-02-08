@@ -7,4 +7,3 @@ CREATE TABLE loans (
     status VARCHAR(10) CHECK (status IN ('approved', 'rejected', 'active', 'closed')) DEFAULT 'approved',
     created_at TIMESTAMP DEFAULT NOW()
 );
--- add amount paid so far? - redundant from all payments?
