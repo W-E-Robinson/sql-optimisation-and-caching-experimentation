@@ -9,4 +9,3 @@ CREATE TABLE users (
     phone VARCHAR(20) UNIQUE NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
--- last_updated TIMESTAMP DEFAULT NOW() -- NOTE: trigger here? = future? - use elsewhere?
