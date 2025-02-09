@@ -34,9 +34,9 @@ erDiagram
     accounts ||--o{ payments : makes
     accounts {
         int id PK
-        int user_id FK
+        int user_id FK "Idx"
         varchar account_type
-        decimal balance
+        decimal balance "Idx"
         char currency
         timestamp created_at
     }
@@ -62,9 +62,9 @@ erDiagram
 
     transactions {
         int id PK
-        int account_id FK
+        int account_id FK "Idx"
         varchar type
-        decimal amount
+        decimal amount "Idx"
         char currency
         varchar status
         timestamp created_at
@@ -73,8 +73,8 @@ erDiagram
     loans ||--o{ payments : has
     loans {
         int id PK
-        int user_id FK
-        decimal amount
+        int user_id FK "Idx"
+        decimal amount "Idx"
         decimal interest_rate
         int term_months
         varchar status
