@@ -1,7 +1,5 @@
 - [Intro](#intro)
 - [Schema](#schema)
-- [Indices](#indices)
-- [Views](#views)
 - [Caching](#caching)
 - [Optimisation Benchmarking](#optimisation-benchmarking)
 - [Cache Testing](#cache-testing)
@@ -34,11 +32,12 @@ erDiagram
     accounts ||--o{ payments : makes
     accounts {
         int id PK
-        int user_id FK
+        int user_id FK "Idx"
         varchar account_type
-        decimal balance
+        decimal balance "Idx"
         char currency
         timestamp created_at
+        int num_active_cards "Denorm"
     }
 
     cards {
@@ -62,9 +61,9 @@ erDiagram
 
     transactions {
         int id PK
-        int account_id FK
+        int account_id FK "Idx"
         varchar type
-        decimal amount
+        decimal amount "Idx"
         char currency
         varchar status
         timestamp created_at
@@ -73,8 +72,8 @@ erDiagram
     loans ||--o{ payments : has
     loans {
         int id PK
-        int user_id FK
-        decimal amount
+        int user_id FK "Idx"
+        decimal amount "Idx"
         decimal interest_rate
         int term_months
         varchar status
@@ -98,9 +97,30 @@ erDiagram
         text details
         timestamp timestamp
     }
+    
+    mat_view_loans_outstanding |o--o| users : "aggregates"
+    mat_view_loans_outstanding {
+        int user_id
+        int sum_loans_outstanding
+    }
+
+    mat_view_average_transaction_amount |o--o| accounts : "calculates"
+    mat_view_average_transaction_amount {
+        int account_id
+        int average_transaction
+    }
+
+    mat_view_suspicious_transactions |o--o| transactions : "includes"
+    mat_view_suspicious_transactions |o--o| accounts : "includes"
+    mat_view_suspicious_transactions |o--o| mat_view_average_transaction_amount : "compares"
+    mat_view_suspicious_transactions {
+        int user_id
+        int account_id
+        int transaction_id
+        int amount
+        text risk_level
+    }
 ```
-## Indices
-## Views
 ## Caching
 ## Optimisation Benchmarking
 ## Cache Testing
