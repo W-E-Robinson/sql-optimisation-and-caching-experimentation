@@ -39,6 +39,7 @@ erDiagram
         decimal balance "Idx"
         char currency
         timestamp created_at
+        int num_active_cards "Denorm"
     }
 
     cards {
