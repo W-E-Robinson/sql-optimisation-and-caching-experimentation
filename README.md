@@ -1,7 +1,5 @@
 - [Intro](#intro)
 - [Schema](#schema)
-- [Indices](#indices)
-- [Views](#views)
 - [Caching](#caching)
 - [Optimisation Benchmarking](#optimisation-benchmarking)
 - [Cache Testing](#cache-testing)
@@ -123,8 +121,6 @@ erDiagram
         text risk_level
     }
 ```
-## Indices
-## Views
 ## Caching
 ## Optimisation Benchmarking
 ## Cache Testing
