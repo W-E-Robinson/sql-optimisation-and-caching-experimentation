@@ -15,14 +15,13 @@ A simple banking PostgreSQL database is used with Rust for programming.
 erDiagram
     users ||--o{ accounts : has
     users ||--o{ loans : takes
-    users ||--|{ audit_logs : audits
+    users ||--|{ audit_logs : has
     users {
         int id PK
         uuid public_id
         varchar given_name
         varchar family_name
         varchar username
-        varchar password
         varchar email
         varchar phone
         timestamp created_at
