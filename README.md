@@ -98,6 +98,29 @@ erDiagram
         text details
         timestamp timestamp
     }
+    
+    mat_view_loans_outstanding |o--o| users : "aggregates"
+    mat_view_loans_outstanding {
+        int user_id
+        int sum_loans_outstanding
+    }
+
+    mat_view_average_transaction_amount |o--o| accounts : "calculates"
+    mat_view_average_transaction_amount {
+        int account_id
+        int average_transaction
+    }
+
+    mat_view_suspicious_transactions |o--o| transactions : "includes"
+    mat_view_suspicious_transactions |o--o| accounts : "includes"
+    mat_view_suspicious_transactions |o--o| mat_view_average_transaction_amount : "compares"
+    mat_view_suspicious_transactions {
+        int user_id
+        int account_id
+        int transaction_id
+        int amount
+        text risk_level
+    }
 ```
 ## Indices
 ## Views
