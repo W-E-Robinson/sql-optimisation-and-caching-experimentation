@@ -1,8 +1,7 @@
 - [Intro](#intro)
 - [Schema](#schema)
+- [SQL Optimisation](#sql-optimisation)
 - [Caching](#caching)
-- [Optimisation Benchmarking](#optimisation-benchmarking)
-- [Cache Testing](#cache-testing)
 
 ## Intro
 This repo was my experimenting with SQL optimisation and code level caching.
@@ -121,6 +120,6 @@ erDiagram
         text risk_level
     }
 ```
+
+## SQL Optimisation
 ## Caching
-## Optimisation Benchmarking
-## Cache Testing
