@@ -1,3 +1,5 @@
+## Contents
+
 - [Intro](#intro)
 - [Schema](#schema)
 - [SQL Optimisation](#sql-optimisation)
