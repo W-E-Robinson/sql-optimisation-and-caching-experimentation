@@ -96,7 +96,7 @@ erDiagram
         int user_id FK
         varchar action
         text details
-        timestamp timestamp
+        timestamp created_at
     }
     
     mat_view_loans_outstanding |o--o| users : "aggregates"

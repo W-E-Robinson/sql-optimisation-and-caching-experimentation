@@ -19,9 +19,9 @@ CREATE TABLE audit_logs (
             'card deleted',
             'account created',
             'account updated',
-            'account deleted',
+            'account deleted'
         )
     ),
     details TEXT,
-    timestamp TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW()
 );
