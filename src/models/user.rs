@@ -1,5 +1,5 @@
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 pub struct UserRowInsertion {
     pub public_id: Uuid,

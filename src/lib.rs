@@ -1,15 +1,19 @@
+// nneed a full catch up with testing too pre card shenaginics
 pub mod enums;
 pub mod models;
 
 use chrono::{DateTime, Duration, Utc};
 use enums::account_type::AccountType;
 use enums::audit_log_action::AuditLogAction;
+// use enums::card_status::CardStatus;
+// use enums::card_type::CardType;
+// use fake::faker::creditcard::en::CreditCardNumber;
 use fake::faker::internet::en::{SafeEmail, Username};
 use fake::faker::name::{en::FirstName, en::LastName};
 use fake::faker::phone_number::en::PhoneNumber;
 use fake::Fake;
 use models::account::AccountRowInsertion;
-use models::card::CardRowInsertion;
+// use models::card::CardRowInsertion;
 use models::user::UserRowInsertion;
 use rand::Rng;
 use sqlx::{Pool, Postgres};
@@ -186,71 +190,64 @@ impl BankSystemManager {
     }
 
     // async fn insert_cards(&self) {
-    //     let mut cards_count = 1;
-    //     let mut current_user_id = 1;
+    //     let mut current_account_id = 1;
+    //     let mut current_card_type = CardType::Debit;
     //     loop {
-    //         if cards_count > 4000 {
+    //         if current_account_id > 4000 {
     //             break;
     //         }
 
-    //         let account_type = match accounts_per_user {
+    //         let account_type = match current_account_id % 4 {
     //             0 => AccountType::Checking,
     //             1 => AccountType::Savings,
     //             2 => AccountType::Credit,
-    //             3 => AccountType::Business,
-    //             _ => AccountType::Checking,
+    //             0 => AccountType::Business,
+    //             _ => AccountType::Checking, // NOTE: correct?
     //         };
-    //         let created_at = self.random_date(9, 8);
-    //         let num_active_cards = match account_type {
-    //             AccountType::Checking => 1,
-    //             AccountType::Savings => 0,
-    //             AccountType::Credit => 1,
-    //             AccountType::Business => 2,
-    //         };
+    //         let created_at = self.random_date(-6, -12);
 
-    //         let account = AccountRowInsertion {
-    //             user_id: current_user_id,
-    //             account_type: account_type.to_string(),
-    //             balance: format!("{:.2}", rand::rng().random_range(0..=1_000_000))
-    //                 .parse()
-    //                 .unwrap_or(0.00),
-    //             created_at,
-    //             num_active_cards,
+    //         let card = CardRowInsertion {
+    //             account_id: current_account_id,
+    //             card_number: CreditCardNumber().fake(),
+    //             card_type: current_card_type.to_string(),
+    //             expiration_date: created_at,
+    //             status: CardStatus::Active.to_string(),
     //         };
     //         if let Err(e) = sqlx::query(
     //             "
-    //             insert into public.accounts
-    //             (user_id, account_type, balance, created_at, num_active_cards)
+    //             insert into public.cards
+    //             (account_id, card_number, card_type, expiration_date, status)
     //             values ($1, $2, $3, $4, $5);
     //             ",
     //         )
-    //         .bind(account.user_id)
-    //         .bind(account.account_type)
-    //         .bind(account.balance)
-    //         .bind(account.created_at)
-    //         .bind(account.num_active_cards)
+    //         .bind(card.account_id)
+    //         .bind(card.card_number)
+    //         .bind(card.card_type)
+    //         .bind(card.expiration_date)
+    //         .bind(card.status)
     //         .execute(&self.db)
     //         .await
     //         {
     //             println!(
-    //                 "Error: failed to insert row into 'accounts' - <id = {}> - <error = {:?}>",
-    //                 accounts_count, e
+    //                 "Error: failed to insert row into 'card' - <card_id = {}> - <error = {:?}>",
+    //                 // NOTE: showing id is silly! it won't be the id as it won't have been entered?
+    //                 1,
+    //                 e
     //             );
     //         } else {
-    //             self.insert_audit_log(
-    //                 current_user_id,
-    //                 AuditLogAction::AccountCreated.to_string(),
-    //                 format!("account id <{}>", accounts_count),
-    //                 created_at,
-    //             )
-    //             .await
+    //             // self.insert_audit_log( // Audit always links to user_id? = no? = all feeds into
+    //             //                        // audit = how keep track if something that audits that
+    //             //                        then disapears? how keep track?
+    //             //     current_user_id,
+    //             //     AuditLogAction::AccountCreated.to_string(),
+    //             //     format!("account id <{}>", accounts_count),
+    //             //     created_at,
+    //             // )
+    //             // .await
     //         }
 
-    //         accounts_count += 1;
-    //         accounts_per_user += 1;
-    //         if accounts_per_user == 4 {
-    //             accounts_per_user = 0;
-    //             current_user_id += 1;
+    //         if account_type == AccountType::Checking {
+    //             account_type = AccountType::Credit;
     //         }
     //     }
     // }

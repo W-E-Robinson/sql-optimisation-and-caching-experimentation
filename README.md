@@ -125,3 +125,8 @@ erDiagram
 
 ## SQL Optimisation
 ## Caching
+
+
+docker run --rm -d --name test-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=testdb -p 5432:5432 postgres:latest
+DATABASE_URL="postgres://postgres:password@localhost:5432/testdb" cargo nextest run
+docker stop test-postgres
