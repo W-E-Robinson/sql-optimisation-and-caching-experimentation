@@ -31,6 +31,7 @@ erDiagram
     accounts ||--o{ transfers : receives
     accounts ||--o{ transactions : makes
     accounts ||--o{ payments : makes
+    accounts ||--|{ audit_logs : has
     accounts {
         int id PK
         int user_id FK "Idx"
@@ -41,6 +42,7 @@ erDiagram
         int num_active_cards "Denorm"
     }
 
+    cards ||--|{ audit_logs : has
     cards {
         int id PK
         int account_id FK
@@ -50,6 +52,7 @@ erDiagram
         varchar status
     }
 
+    transfers ||--|{ audit_logs : has
     transfers {
         int id PK
         int sender_account_id FK
@@ -60,6 +63,7 @@ erDiagram
         timestamp created_at
     }
 
+    transactions ||--|{ audit_logs : has
     transactions {
         int id PK
         int account_id FK "Idx"
@@ -70,6 +74,7 @@ erDiagram
         timestamp created_at
     }
 
+    loans ||--|{ audit_logs : has
     loans ||--o{ payments : has
     loans {
         int id PK
@@ -81,6 +86,7 @@ erDiagram
         timestamp created_at
     }
 
+    payments ||--|{ audit_logs : has
     payments {
         int id PK
         int account_id FK
@@ -93,7 +99,8 @@ erDiagram
 
     audit_logs {
         int id PK
-        int user_id FK
+        int subject_table
+        int subject_id
         varchar action
         text details
         timestamp created_at

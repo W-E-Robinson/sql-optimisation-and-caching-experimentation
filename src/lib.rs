@@ -4,6 +4,7 @@ pub mod models;
 use chrono::{DateTime, Duration, Utc};
 use enums::account_type::AccountType;
 use enums::audit_log_action::AuditLogAction;
+use enums::audit_log_subject_table::AuditLogSubjectTable;
 // use enums::card_status::CardStatus;
 // use enums::card_type::CardType;
 // use fake::faker::creditcard::en::CreditCardNumber;
@@ -15,7 +16,7 @@ use models::account::AccountRowInsertion;
 // use models::card::CardRowInsertion;
 use models::user::UserRowInsertion;
 use rand::Rng;
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
 
 struct BankSystemManager {
@@ -38,7 +39,8 @@ impl BankSystemManager {
 
     async fn insert_audit_log(
         &self,
-        user_id: i32,
+        subject_table: &str,
+        subject_id: i32,
         action: &str,
         details: String,
         created_at: DateTime<Utc>,
@@ -46,11 +48,12 @@ impl BankSystemManager {
         if let Err(e) = sqlx::query(
             "
             INSERT INTO public.audit_logs 
-            (user_id, action, details, created_at)
-            VALUES ($1, $2, $3, $4);
+            (subject_table, subject_id, action, details, created_at)
+            VALUES ($1, $2, $3, $4, $5);
             ",
         )
-        .bind(user_id)
+        .bind(subject_table)
+        .bind(subject_id)
         .bind(action)
         .bind(details)
         .bind(created_at)
@@ -58,8 +61,8 @@ impl BankSystemManager {
         .await
         {
             println!(
-                 "Error: failed to insert row into 'audit_logs' - <user_id = {}> - <action = {}> - <error = {:?}>",
-                 user_id, action, e
+                 "Error: failed to insert row into 'audit_logs' - <subject_table={}> - <subject_id={}> - <action={}> - <error={:?}>",
+                 subject_table, subject_id, action, e
              );
         }
     }
@@ -82,11 +85,12 @@ impl BankSystemManager {
                 phone: PhoneNumber().fake(),
                 created_at,
             };
-            if let Err(e) = sqlx::query(
+            match sqlx::query(
                 "
                 INSERT INTO public.users 
                 (public_id, given_name, family_name, username, email, phone, created_at) 
-                VALUES ($1, $2, $3, $4, $5, $6, $7);
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING id;
                 ",
             )
             .bind(user.public_id)
@@ -96,21 +100,27 @@ impl BankSystemManager {
             .bind(user.email)
             .bind(user.phone)
             .bind(user.created_at)
-            .execute(&self.db)
+            .fetch_one(&self.db)
             .await
             {
-                println!(
-                    "Error: failed to insert row into 'users' - <id = {}> - <error = {:?}>",
-                    users_count, e
-                );
-            } else {
-                self.insert_audit_log(
-                    users_count,
-                    AuditLogAction::UserCreated.to_string(),
-                    format!("user id <{}>", users_count),
-                    created_at,
-                )
-                .await
+                Ok(row) => {
+                    let user_id: i32 = row.get::<i32, _>("id");
+
+                    self.insert_audit_log(
+                        AuditLogSubjectTable::Users.to_string(),
+                        user_id,
+                        AuditLogAction::UserCreated.to_string(),
+                        format!("user id <{}>", user_id),
+                        user.created_at,
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    println!(
+                        "Error: failed to insert row into 'users' - <error = {:?}>",
+                        e
+                    );
+                }
             }
 
             users_count += 1;
@@ -150,11 +160,12 @@ impl BankSystemManager {
                 created_at,
                 num_active_cards,
             };
-            if let Err(e) = sqlx::query(
+            match sqlx::query(
                 "
                 insert into public.accounts
                 (user_id, account_type, balance, created_at, num_active_cards)
-                values ($1, $2, $3, $4, $5);
+                values ($1, $2, $3, $4, $5)
+                RETURNING id;
                 ",
             )
             .bind(account.user_id)
@@ -162,21 +173,27 @@ impl BankSystemManager {
             .bind(account.balance)
             .bind(account.created_at)
             .bind(account.num_active_cards)
-            .execute(&self.db)
+            .fetch_one(&self.db)
             .await
             {
-                println!(
-                    "Error: failed to insert row into 'accounts' - <id = {}> - <error = {:?}>",
-                    accounts_count, e
-                );
-            } else {
-                self.insert_audit_log(
-                    current_user_id,
-                    AuditLogAction::AccountCreated.to_string(),
-                    format!("account id <{}>", accounts_count),
-                    created_at,
-                )
-                .await
+                Ok(row) => {
+                    let account_id: i32 = row.get::<i32, _>("id");
+
+                    self.insert_audit_log(
+                        AuditLogSubjectTable::Accounts.to_string(),
+                        account_id,
+                        AuditLogAction::AccountCreated.to_string(),
+                        format!("account id <{}>", account_id),
+                        created_at,
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    println!(
+                        "Error: failed to insert row into 'accounts' - <user_id={}> - <error={:?}>",
+                        account.user_id, e
+                    );
+                }
             }
 
             accounts_count += 1;
@@ -228,7 +245,7 @@ impl BankSystemManager {
     //         .await
     //         {
     //             println!(
-    //                 "Error: failed to insert row into 'card' - <card_id = {}> - <error = {:?}>",
+    //                 "Error: failed to insert row into 'card' - <card_id={}> - <error={:?}>",
     //                 // NOTE: showing id is silly! it won't be the id as it won't have been entered?
     //                 1,
     //                 e
@@ -286,7 +303,7 @@ mod test {
             .iter()
             .filter(|log| {
                 AuditLogAction::from_string(log.get::<String, _>("action").as_str())
-                    == AuditLogAction::UserCreated
+                    == Some(AuditLogAction::UserCreated)
             })
             .collect();
         assert_eq!(user_insertions.len(), 1000);
@@ -294,11 +311,12 @@ mod test {
         Ok(())
     }
 
+    // NOTE: after each to clear database = or sqlx takes care of?
     #[sqlx::test(fixtures(
         "../db/schema/users.sql",
         "../db/schema/accounts.sql",
         "../db/schema/audit_logs.sql"
-    ))] // NOTE: check num cards + type of accounts?
+    ))]
     async fn test_accounts_created(pool: PgPool) -> sqlx::Result<()> {
         let bank_system_manager = BankSystemManager::new(pool.clone());
 
@@ -316,14 +334,12 @@ mod test {
             .await?;
 
         assert_eq!(accounts.len(), 4000);
-        assert_eq!(audit_logs.len(), 5000); // NOTE: need to clear down audits between tests? -
-                                            // also after all to allow tests run on after another
-                                            // no docker restar
+        assert_eq!(audit_logs.len(), 5000);
         let account_insertions: Vec<_> = audit_logs
             .iter()
             .filter(|log| {
                 AuditLogAction::from_string(log.get::<String, _>("action").as_str())
-                    == AuditLogAction::AccountCreated
+                    == Some(AuditLogAction::AccountCreated)
             })
             .collect();
         assert_eq!(account_insertions.len(), 4000);

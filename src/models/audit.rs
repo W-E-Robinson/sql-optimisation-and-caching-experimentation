@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-
 use crate::enums::audit_log_action::AuditLogAction;
 
 pub struct AuditLogs {

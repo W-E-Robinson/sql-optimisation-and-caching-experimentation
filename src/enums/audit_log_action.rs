@@ -81,14 +81,17 @@ mod test {
         assert_eq!(AuditLogAction::UserCreated.to_string(), "user created");
     }
 
+    #[test]
     fn test_audit_log_action_to_string_user_updated() {
         assert_eq!(AuditLogAction::UserUpdated.to_string(), "user updated");
     }
 
+    #[test]
     fn test_audit_log_action_to_string_user_deleted() {
         assert_eq!(AuditLogAction::UserDeleted.to_string(), "user deleted");
     }
 
+    #[test]
     fn test_audit_log_action_to_string_transfer_created() {
         assert_eq!(
             AuditLogAction::TransferCreated.to_string(),
@@ -96,6 +99,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_to_string_transfer_updated() {
         assert_eq!(
             AuditLogAction::TransferUpdated.to_string(),
@@ -103,6 +107,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_to_string_transaction_created() {
         assert_eq!(
             AuditLogAction::TransactionCreated.to_string(),
@@ -110,6 +115,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_to_string_transaction_deleted() {
         assert_eq!(
             AuditLogAction::TransactionDeleted.to_string(),
@@ -117,6 +123,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_to_string_payment_created() {
         assert_eq!(
             AuditLogAction::PaymentCreated.to_string(),
@@ -124,6 +131,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_to_string_payment_updated() {
         assert_eq!(
             AuditLogAction::PaymentUpdated.to_string(),
@@ -131,26 +139,32 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_to_string_loan_created() {
         assert_eq!(AuditLogAction::LoanCreated.to_string(), "loan created");
     }
 
+    #[test]
     fn test_audit_log_action_to_string_loan_updated() {
         assert_eq!(AuditLogAction::LoanUpdated.to_string(), "loan updated");
     }
 
+    #[test]
     fn test_audit_log_action_to_string_card_created() {
         assert_eq!(AuditLogAction::CardCreated.to_string(), "card created");
     }
 
+    #[test]
     fn test_audit_log_action_to_string_card_updated() {
         assert_eq!(AuditLogAction::CardUpdated.to_string(), "card updated");
     }
 
+    #[test]
     fn test_audit_log_action_to_string_card_deleted() {
         assert_eq!(AuditLogAction::CardDeleted.to_string(), "card deleted");
     }
 
+    #[test]
     fn test_audit_log_action_to_string_account_created() {
         assert_eq!(
             AuditLogAction::AccountCreated.to_string(),
@@ -158,6 +172,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_to_string_account_updated() {
         assert_eq!(
             AuditLogAction::AccountUpdated.to_string(),
@@ -165,6 +180,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_to_string_account_deleted() {
         assert_eq!(
             AuditLogAction::AccountDeleted.to_string(),
@@ -172,6 +188,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_user_updated() {
         assert_eq!(
             AuditLogAction::from_string("user updated"),
@@ -179,6 +196,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_user_deleted() {
         assert_eq!(
             AuditLogAction::from_string("user deleted"),
@@ -186,6 +204,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_transfer_created() {
         assert_eq!(
             AuditLogAction::from_string("transfer created"),
@@ -193,6 +212,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_transfer_updated() {
         assert_eq!(
             AuditLogAction::from_string("transfer updated"),
@@ -200,6 +220,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_transaction_created() {
         assert_eq!(
             AuditLogAction::from_string("transaction created"),
@@ -207,6 +228,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_transaction_deleted() {
         assert_eq!(
             AuditLogAction::from_string("transaction deleted"),
@@ -214,6 +236,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_payment_created() {
         assert_eq!(
             AuditLogAction::from_string("payment created"),
@@ -221,6 +244,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_payment_updated() {
         assert_eq!(
             AuditLogAction::from_string("payment updated"),
@@ -228,6 +252,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_loan_created() {
         assert_eq!(
             AuditLogAction::from_string("loan created"),
@@ -235,6 +260,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_loan_updated() {
         assert_eq!(
             AuditLogAction::from_string("loan updated"),
@@ -242,6 +268,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_card_created() {
         assert_eq!(
             AuditLogAction::from_string("card created"),
@@ -249,6 +276,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_card_updated() {
         assert_eq!(
             AuditLogAction::from_string("card updated"),
@@ -256,6 +284,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_card_deleted() {
         assert_eq!(
             AuditLogAction::from_string("card deleted"),
@@ -263,6 +292,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_account_created() {
         assert_eq!(
             AuditLogAction::from_string("account created"),
@@ -270,6 +300,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_account_updated() {
         assert_eq!(
             AuditLogAction::from_string("account updated"),
@@ -277,6 +308,7 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_account_deleted() {
         assert_eq!(
             AuditLogAction::from_string("account deleted"),
@@ -284,10 +316,8 @@ mod test {
         );
     }
 
+    #[test]
     fn test_audit_log_action_from_string_not_found() {
-        assert_eq!(
-            AuditLogAction::from_string("not found"),
-            None,
-        );
+        assert_eq!(AuditLogAction::from_string("not found"), None,);
     }
 }

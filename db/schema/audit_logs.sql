@@ -1,7 +1,18 @@
 CREATE TABLE audit_logs (
     id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id) ON DELETE CASCADE,
-    action VARCHAR(255) CHECK (
+    subject_table VARCHAR(50) CHECK (
+        subject_table IN (
+            'users'
+            'accounts'
+            'cards'
+            'transfers'
+            'transactions'
+            'loans'
+            'payments'
+        )
+    ),
+    subject_id INT,
+    action VARCHAR(50) CHECK (
         action IN (
             'user created',
             'user updated',
