@@ -1,128 +1,19 @@
-use core::panic;
+pub mod enums;
+pub mod models;
 
-// NOTE: lib.rs? or another file? - as not a library
-// think on general repo org oo
 use chrono::{DateTime, Duration, Utc};
+use enums::account_type::AccountType;
+use enums::audit_log_action::AuditLogAction;
 use fake::faker::internet::en::{SafeEmail, Username};
 use fake::faker::name::{en::FirstName, en::LastName};
 use fake::faker::phone_number::en::PhoneNumber;
 use fake::Fake;
+use models::account::AccountRowInsertion;
+use models::card::CardRowInsertion;
+use models::user::UserRowInsertion;
 use rand::Rng;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
-
-pub struct UserRowAccount {
-    public_id: Uuid,
-    given_name: String,
-    family_name: String,
-    username: String,
-    email: String,
-    phone: String,
-    created_at: DateTime<Utc>,
-}
-
-pub struct AccountRowInsertion {
-    user_id: i32,
-    account_type: String,
-    balance: f64,
-    created_at: DateTime<Utc>,
-    num_active_cards: i32,
-}
-
-#[derive(PartialEq)]
-enum AuditLogAction {
-    UserCreated,
-    UserUpdated,
-    UserDeleted,
-    TransferCreated,
-    TransferUpdated,
-    TransactionCreated,
-    TransactionDeleted,
-    PaymentCreated,
-    PaymentUpdated,
-    LoanCreated,
-    LoanUpdated,
-    CardCreated,
-    CardUpdated,
-    CardDeleted,
-    AccountCreated,
-    AccountUpdated,
-    AccountDeleted,
-}
-
-enum AccountType {
-    Checking,
-    Savings,
-    Credit,
-    Business,
-}
-
-impl AccountType {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Checking => String::from("checking"),
-            Self::Savings => String::from("savings"),
-            Self::Credit => String::from("credit"),
-            Self::Business => String::from("business"),
-        }
-    }
-}
-
-impl AuditLogAction {
-    fn to_string(&self) -> &'static str {
-        match self {
-            Self::UserCreated => "user created",
-            Self::UserUpdated => "user updated",
-            Self::UserDeleted => "user deleted",
-            Self::TransferCreated => "transfer created",
-            Self::TransferUpdated => "transfer updated",
-            Self::TransactionCreated => "transaction created",
-            Self::TransactionDeleted => "transaction deleted",
-            Self::PaymentCreated => "payment created",
-            Self::PaymentUpdated => "payment updated",
-            Self::LoanCreated => "loan created",
-            Self::LoanUpdated => "loan updated",
-            Self::CardCreated => "card created",
-            Self::CardUpdated => "card updated",
-            Self::CardDeleted => "card deleted",
-            Self::AccountCreated => "account created",
-            Self::AccountUpdated => "account updated",
-            Self::AccountDeleted => "account deleted",
-        }
-    }
-
-    fn from_string(action: &str) -> Self {
-        match action {
-            "user created" => Self::UserCreated,
-            "user updated" => Self::UserUpdated,
-            "user deleted" => Self::UserDeleted,
-            "transfer created" => Self::TransferCreated,
-            "transfer updated" => Self::TransferUpdated,
-            "transaction created" => Self::TransactionCreated,
-            "transaction deleted" => Self::TransactionDeleted,
-            "payment created" => Self::PaymentCreated,
-            "payment updated" => Self::PaymentUpdated,
-            "loan created" => Self::LoanCreated,
-            "loan updated" => Self::LoanUpdated,
-            "card created" => Self::CardCreated,
-            "card updated" => Self::CardUpdated,
-            "card deleted" => Self::CardDeleted,
-            "account created" => Self::AccountCreated,
-            "account updated" => Self::AccountUpdated,
-            "account deleted" => Self::AccountDeleted,
-            _ => panic!(
-                "Error: AuditLogAction not found from action - <action = {}>",
-                action
-            ), // NOTE: or None?
-        }
-    }
-}
-
-pub struct AuditLogs {
-    action: AuditLogAction,
-    text: String,
-    timestamp: DateTime<Utc>,
-}
 
 struct BankSystemManager {
     db: Pool<Postgres>,
@@ -179,7 +70,7 @@ impl BankSystemManager {
 
             let created_at = self.random_date(10, 9);
 
-            let user = UserRowAccount {
+            let user = UserRowInsertion {
                 public_id: Uuid::new_v4(),
                 given_name: FirstName().fake(),
                 family_name: LastName().fake(),
@@ -294,9 +185,80 @@ impl BankSystemManager {
         }
     }
 
+    // async fn insert_cards(&self) {
+    //     let mut cards_count = 1;
+    //     let mut current_user_id = 1;
+    //     loop {
+    //         if cards_count > 4000 {
+    //             break;
+    //         }
+
+    //         let account_type = match accounts_per_user {
+    //             0 => AccountType::Checking,
+    //             1 => AccountType::Savings,
+    //             2 => AccountType::Credit,
+    //             3 => AccountType::Business,
+    //             _ => AccountType::Checking,
+    //         };
+    //         let created_at = self.random_date(9, 8);
+    //         let num_active_cards = match account_type {
+    //             AccountType::Checking => 1,
+    //             AccountType::Savings => 0,
+    //             AccountType::Credit => 1,
+    //             AccountType::Business => 2,
+    //         };
+
+    //         let account = AccountRowInsertion {
+    //             user_id: current_user_id,
+    //             account_type: account_type.to_string(),
+    //             balance: format!("{:.2}", rand::rng().random_range(0..=1_000_000))
+    //                 .parse()
+    //                 .unwrap_or(0.00),
+    //             created_at,
+    //             num_active_cards,
+    //         };
+    //         if let Err(e) = sqlx::query(
+    //             "
+    //             insert into public.accounts
+    //             (user_id, account_type, balance, created_at, num_active_cards)
+    //             values ($1, $2, $3, $4, $5);
+    //             ",
+    //         )
+    //         .bind(account.user_id)
+    //         .bind(account.account_type)
+    //         .bind(account.balance)
+    //         .bind(account.created_at)
+    //         .bind(account.num_active_cards)
+    //         .execute(&self.db)
+    //         .await
+    //         {
+    //             println!(
+    //                 "Error: failed to insert row into 'accounts' - <id = {}> - <error = {:?}>",
+    //                 accounts_count, e
+    //             );
+    //         } else {
+    //             self.insert_audit_log(
+    //                 current_user_id,
+    //                 AuditLogAction::AccountCreated.to_string(),
+    //                 format!("account id <{}>", accounts_count),
+    //                 created_at,
+    //             )
+    //             .await
+    //         }
+
+    //         accounts_count += 1;
+    //         accounts_per_user += 1;
+    //         if accounts_per_user == 4 {
+    //             accounts_per_user = 0;
+    //             current_user_id += 1;
+    //         }
+    //     }
+    // }
+
     async fn insert_data(&self) {
         self.insert_users().await;
         self.insert_accounts().await;
+        // self.insert_cards().await;
     }
 }
 
