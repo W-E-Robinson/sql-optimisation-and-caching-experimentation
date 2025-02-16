@@ -16,3 +16,28 @@ impl AccountType {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_account_type_to_string_checking() {
+        assert_eq!(AccountType::Checking.to_string(), "checking");
+    }
+
+    #[test]
+    fn test_account_type_to_string_savings() {
+        assert_eq!(AccountType::Savings.to_string(), "savings");
+    }
+
+    #[test]
+    fn test_account_type_to_string_credit() {
+        assert_eq!(AccountType::Credit.to_string(), "credit");
+    }
+
+    #[test]
+    fn test_account_type_to_string_business() {
+        assert_eq!(AccountType::Business.to_string(), "business");
+    }
+}

@@ -1,4 +1,3 @@
-// nneed a full catch up with testing too pre card shenaginics
 pub mod enums;
 pub mod models;
 
