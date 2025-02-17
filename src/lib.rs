@@ -7,6 +7,7 @@ use enums::audit_log_action::AuditLogAction;
 use enums::audit_log_subject_table::AuditLogSubjectTable;
 use enums::card_status::CardStatus;
 use enums::card_type::{self, CardType};
+use enums::transfer_status::TransferStatus;
 use fake::faker::creditcard::en::CreditCardNumber;
 use fake::faker::internet::en::{SafeEmail, Username};
 use fake::faker::name::{en::FirstName, en::LastName};
@@ -14,6 +15,7 @@ use fake::faker::phone_number::en::PhoneNumber;
 use fake::Fake;
 use models::account::AccountRowInsertion;
 use models::card::CardRowInsertion;
+use models::transfer::{self, TransferRowInsertion};
 use models::user::UserRowInsertion;
 use rand::Rng;
 use sqlx::{Pool, Postgres, Row};
@@ -307,10 +309,101 @@ impl BankSystemManager {
         }
     }
 
+    async fn insert_transfers(&self) {
+        let mut current_account_id = 1;
+        let mut num_transfers_each_account = 0;
+        loop {
+            if current_account_id > 400 {
+                // NOTE: constant this and all others
+                break;
+            }
+
+            let account_type = match current_account_id % 4 {
+                1 => AccountType::Checking,
+                2 => AccountType::Savings,
+                3 => AccountType::Credit,
+                0 => AccountType::Business,
+                _ => {
+                    println!(
+                        "Warning: failed to find account type for account <id={}>, defaulting to Savings account",
+                        current_account_id
+                    );
+                    AccountType::Savings
+                }
+            };
+
+            if account_type == AccountType::Savings {
+                current_account_id += 1;
+                continue;
+            } else if account_type == AccountType::Credit {
+                current_account_id += 1;
+                continue;
+            }
+
+            // Set receiver to another account
+            let receiver_account_id = (current_account_id + 200) % 400 + 1;
+
+            let created_at = self.random_date_past(-6, -12);
+
+            let transfer = TransferRowInsertion {
+                sender_account_id: current_account_id,
+                receiver_account_id,
+                amount: format!("{:.2}", rand::rng().random_range(1..=1_000))
+                    .parse()
+                    .unwrap_or(1.00),
+                status: TransferStatus::Completed.to_string(),
+                created_at,
+            };
+            match sqlx::query(
+                "
+                INSERT INTO public.transfers
+                (sender_account_id, receiver_account_id, amount, status, created_at)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING id;
+                ",
+            )
+            .bind(transfer.sender_account_id)
+            .bind(transfer.receiver_account_id)
+            .bind(transfer.amount)
+            .bind(transfer.status)
+            .bind(transfer.created_at)
+            .fetch_one(&self.db)
+            .await
+            {
+                Ok(row) => {
+                    let transfer_id: i32 = row.get::<i32, _>("id");
+
+                    self.insert_audit_log(
+                        AuditLogSubjectTable::Transfers.to_string(),
+                        transfer_id,
+                        AuditLogAction::TransferCreated.to_string(),
+                        format!("transfers id <{}>", transfer_id),
+                        created_at,
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    println!(
+                        "Error: failed to insert row into 'transfers' - <sender_account_id={}> - <receiver_account_id={}> - <error={:?}>",
+                        transfer.sender_account_id, transfer.receiver_account_id, e
+                    );
+                }
+            }
+
+            num_transfers_each_account += 1;
+            if num_transfers_each_account == 5 {
+                // NOTE: constant this too
+                num_transfers_each_account = 0;
+                current_account_id += 1;
+            }
+        }
+    }
+
     async fn insert_data(&self) {
         self.insert_users().await;
         self.insert_accounts().await;
         self.insert_cards().await;
+        self.insert_transfers().await;
     }
 }
 
@@ -418,6 +511,43 @@ mod test {
             })
             .collect();
         assert_eq!(card_insertions.len(), 400);
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/users.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/transfers.sql",
+        "../db/schema/audit_logs.sql"
+    ))]
+    async fn test_transfers_inserted(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_accounts().await;
+        bank_system_manager.insert_transfers().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let transfers = sqlx::query("SELECT * FROM public.transfers")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let audit_logs = sqlx::query("SELECT * FROM public.audit_logs")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        assert_eq!(transfers.len(), 1000);
+        assert_eq!(audit_logs.len(), 1500);
+        let transfer_insertions: Vec<_> = audit_logs
+            .iter()
+            .filter(|log| {
+                AuditLogAction::from_string(log.get::<String, _>("action").as_str())
+                    == Some(AuditLogAction::TransferCreated)
+            })
+            .collect();
+        assert_eq!(transfer_insertions.len(), 1000);
 
         Ok(())
     }
