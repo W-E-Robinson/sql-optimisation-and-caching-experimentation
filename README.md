@@ -133,6 +133,6 @@ erDiagram
 ## SQL Optimisation
 Temporary commands to run tests:
 docker run --rm -d --name test-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=testdb -p 5432:5432 postgres:latest
-DATABASE_URL="postgres://postgres:password@localhost:5432/testdb" cargo nextest run
+DATABASE_URL="postgres://postgres:password@localhost:5432/testdb" cargo nextest run --nocapture
 docker stop test-postgres
 ## Caching

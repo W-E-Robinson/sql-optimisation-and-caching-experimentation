@@ -27,4 +27,3 @@ SELECT
 FROM transaction_counts tc
 JOIN average_transaction_amount ata 
     ON tc.account_id = ata.account_id;
-    add denorm num of cards

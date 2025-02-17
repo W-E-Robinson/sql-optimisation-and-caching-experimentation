@@ -642,6 +642,7 @@ impl BankSystemManager {
 #[cfg(test)]
 mod test {
     use sqlx::{PgPool, Row};
+    use std::time::Instant;
 
     use super::*;
 
@@ -908,13 +909,7 @@ mod test {
     async fn test_all_insertions(pool: PgPool) -> sqlx::Result<()> {
         let bank_system_manager = BankSystemManager::new(pool.clone());
 
-        bank_system_manager.insert_users().await;
-        bank_system_manager.insert_accounts().await;
-        bank_system_manager.insert_cards().await;
-        bank_system_manager.insert_transfers().await;
-        bank_system_manager.insert_transactions().await;
-        bank_system_manager.insert_loans().await;
-        bank_system_manager.insert_payments().await;
+        bank_system_manager.insert_data().await;
 
         let mut conn = pool.acquire().await?;
 
@@ -958,6 +953,220 @@ mod test {
         assert_eq!(loans.len(), 100);
         assert_eq!(payments.len(), 300);
         assert_eq!(audit_logs.len(), 2700);
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/audit_logs.sql",
+        "../db/schema/users.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/cards.sql",
+        "../db/schema/transfers.sql",
+        "../db/schema/transactions.sql",
+        "../db/schema/loans.sql",
+        "../db/schema/payments.sql",
+        "../db/views/average_transaction_amount.sql",
+    ))]
+    async fn test_average_transaction_amount_time_difference_raw_sql_materialized_view(
+        pool: PgPool,
+    ) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_data().await;
+
+        let mut conn = pool.acquire().await?;
+
+        sqlx::query("REFRESH MATERIALIZED VIEW public.average_transaction_amount")
+            .execute(&mut *conn)
+            .await?;
+
+        let raw_start = Instant::now();
+        let raw_sql = sqlx::query(
+            "
+            SELECT 
+                accounts.id AS account_id,
+                AVG(transactions.amount) AS average_transaction
+            FROM 
+                accounts
+            JOIN 
+                transactions ON accounts.id = transactions.account_id
+            GROUP BY accounts.id;
+            ",
+        )
+        .fetch_all(&mut *conn)
+        .await?;
+        let raw_duration = raw_start.elapsed();
+
+        let mat_start = Instant::now();
+        let mat_view =
+            sqlx::query("SELECT * FROM public.average_transaction_amount")
+                .fetch_all(&mut *conn)
+                .await?;
+        let mat_duration = mat_start.elapsed();
+
+        assert_eq!(
+            raw_sql.len(),
+            mat_view.len()
+        );
+
+        println!("Time for raw SQL query: {:?}", raw_duration);
+        println!("Time for materialized view query: {:?}", mat_duration);
+        println!(
+            "Percentage materialized view faster than raw SQL query: {:?}",
+            ((raw_duration.as_secs_f64() - mat_duration.as_secs_f64())/ raw_duration.as_secs_f64())
+                * 100.00
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/audit_logs.sql",
+        "../db/schema/users.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/cards.sql",
+        "../db/schema/transfers.sql",
+        "../db/schema/transactions.sql",
+        "../db/schema/loans.sql",
+        "../db/schema/payments.sql",
+        "../db/views/loans_outstanding.sql",
+    ))]
+    async fn test_loans_outstanding_time_difference_raw_sql_materialized_view(
+        pool: PgPool,
+    ) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_data().await;
+
+        let mut conn = pool.acquire().await?;
+
+        sqlx::query("REFRESH MATERIALIZED VIEW public.loans_outstanding")
+            .execute(&mut *conn)
+            .await?;
+
+        let raw_start = Instant::now();
+        let raw_sql = sqlx::query(
+            "
+            SELECT 
+                users.id AS user_id,
+                SUM(loans.amount) AS sum_loans_outstanding
+            FROM 
+                users
+            JOIN 
+                loans ON users.id = loans.user_id AND loans.status = 'active'
+            GROUP BY 
+                users.id;
+            ",
+        )
+        .fetch_all(&mut *conn)
+        .await?;
+        let raw_duration = raw_start.elapsed();
+
+        let mat_start = Instant::now();
+        let mat_view =
+            sqlx::query("SELECT * FROM public.loans_outstanding")
+                .fetch_all(&mut *conn)
+                .await?;
+        let mat_duration = mat_start.elapsed();
+
+        assert_eq!(
+            raw_sql.len(),
+            mat_view.len()
+        );
+
+        println!("Time for raw SQL query: {:?}", raw_duration);
+        println!("Time for materialized view query: {:?}", mat_duration);
+        println!(
+            "Percentage materialized view faster than raw SQL query: {:?}",
+            ((raw_duration.as_secs_f64() - mat_duration.as_secs_f64())/ raw_duration.as_secs_f64())
+                * 100.00
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/audit_logs.sql",
+        "../db/schema/users.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/cards.sql",
+        "../db/schema/transfers.sql",
+        "../db/schema/transactions.sql",
+        "../db/schema/loans.sql",
+        "../db/schema/payments.sql",
+        "../db/views/average_transaction_amount.sql",
+        "../db/views/suspicious_transactions.sql",
+    ))]
+    async fn test_suspicious_transactions_time_difference_raw_sql_materialized_view(
+        pool: PgPool,
+    ) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_data().await;
+
+        let mut conn = pool.acquire().await?;
+
+        sqlx::query("REFRESH MATERIALIZED VIEW public.suspicious_transactions")
+            .execute(&mut *conn)
+            .await?;
+
+        let raw_start = Instant::now();
+        let raw_sql = sqlx::query(
+            "
+            WITH transaction_counts AS (
+                SELECT 
+                    a.user_id,
+                    t.account_id,
+                    t.id AS transaction_id,
+                    t.amount,
+                    COUNT(*) OVER (
+                        PARTITION BY t.account_id 
+                        ORDER BY t.created_at 
+                        RANGE BETWEEN INTERVAL '10 minutes' PRECEDING AND CURRENT ROW
+                    ) AS transaction_count_last_10_minutes
+                FROM transactions t
+                JOIN accounts a ON t.account_id = a.id
+                WHERE t.status IN ('completed', 'pending')
+            )
+            SELECT 
+                tc.user_id,
+                tc.account_id,
+                tc.transaction_id,
+                tc.amount,
+                CASE 
+                    WHEN tc.amount > (ata.average_transaction * 5) THEN 'high value transaction'
+                    WHEN tc.amount < 10 AND tc.transaction_count_last_10_minutes > 5 THEN 'potential rapid successive small transactions'
+                    ELSE 'normal'
+                END AS risk_level
+            FROM transaction_counts tc
+            JOIN average_transaction_amount ata 
+                ON tc.account_id = ata.account_id;
+            ",
+        )
+        .fetch_all(&mut *conn)
+        .await?;
+        let raw_duration = raw_start.elapsed();
+
+        let mat_start = Instant::now();
+        let mat_view =
+            sqlx::query("SELECT * FROM public.suspicious_transactions")
+                .fetch_all(&mut *conn)
+                .await?;
+        let mat_duration = mat_start.elapsed();
+
+        assert_eq!(
+            raw_sql.len(),
+            mat_view.len()
+        );
+
+        println!("Time for raw SQL query: {:?}", raw_duration);
+        println!("Time for materialized view query: {:?}", mat_duration);
+        println!(
+            "Percentage materialized view faster than raw SQL query: {:?}",
+            ((raw_duration.as_secs_f64() - mat_duration.as_secs_f64())/ raw_duration.as_secs_f64())
+                * 100.00
+        );
 
         Ok(())
     }
