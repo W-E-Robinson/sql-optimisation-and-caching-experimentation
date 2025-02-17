@@ -28,6 +28,11 @@ use rand::Rng;
 use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
 
+const NUM_USERS: i32 = 100;
+const NUM_ACCOUNTS_PER_USER: i32 = 4;
+const NUM_TRANSFERS_PER_ACCOUNT: i32 = 5;
+const NUM_TRANSACTIONS_PER_ACCOUNT: i32 = 2;
+
 struct BankSystemManager {
     db: Pool<Postgres>,
 }
@@ -79,7 +84,7 @@ impl BankSystemManager {
     async fn insert_users(&self) {
         let mut users_count = 1;
         loop {
-            if users_count > 100 {
+            if users_count > NUM_USERS {
                 break;
             }
 
@@ -141,7 +146,7 @@ impl BankSystemManager {
         let mut current_user_id = 1;
         let mut accounts_per_user = 0;
         loop {
-            if accounts_count > 400 {
+            if accounts_count > NUM_USERS * NUM_ACCOUNTS_PER_USER {
                 break;
             }
 
@@ -207,7 +212,7 @@ impl BankSystemManager {
 
             accounts_count += 1;
             accounts_per_user += 1;
-            if accounts_per_user == 4 {
+            if accounts_per_user == NUM_ACCOUNTS_PER_USER {
                 accounts_per_user = 0;
                 current_user_id += 1;
             }
@@ -218,11 +223,11 @@ impl BankSystemManager {
         let mut current_account_id = 1;
         let mut is_business_account_debit_inserted = false;
         loop {
-            if current_account_id > 400 {
+            if current_account_id > NUM_USERS * NUM_ACCOUNTS_PER_USER {
                 break;
             }
 
-            let account_type = match current_account_id % 4 {
+            let account_type = match current_account_id % NUM_ACCOUNTS_PER_USER {
                 1 => AccountType::Checking,
                 2 => AccountType::Savings,
                 3 => AccountType::Credit,
@@ -320,12 +325,11 @@ impl BankSystemManager {
         let mut current_account_id = 1;
         let mut num_transfers_each_account = 0;
         loop {
-            if current_account_id > 400 {
-                // NOTE: constant this and all others
+            if current_account_id > NUM_USERS * NUM_ACCOUNTS_PER_USER {
                 break;
             }
 
-            let account_type = match current_account_id % 4 {
+            let account_type = match current_account_id % NUM_ACCOUNTS_PER_USER {
                 1 => AccountType::Checking,
                 2 => AccountType::Savings,
                 3 => AccountType::Credit,
@@ -398,8 +402,7 @@ impl BankSystemManager {
             }
 
             num_transfers_each_account += 1;
-            if num_transfers_each_account == 5 {
-                // NOTE: constant this too
+            if num_transfers_each_account == NUM_TRANSFERS_PER_ACCOUNT {
                 num_transfers_each_account = 0;
                 current_account_id += 1;
             }
@@ -410,8 +413,7 @@ impl BankSystemManager {
         let mut current_account_id = 1;
         let mut num_transactions_each_account = 0;
         loop {
-            if current_account_id > 400 {
-                // NOTE: constant this and all others
+            if current_account_id > NUM_USERS * NUM_ACCOUNTS_PER_USER {
                 break;
             }
 
@@ -496,8 +498,7 @@ impl BankSystemManager {
             }
 
             num_transactions_each_account += 1;
-            if num_transactions_each_account == 2 {
-                // NOTE: constant this too
+            if num_transactions_each_account == NUM_TRANSACTIONS_PER_ACCOUNT {
                 num_transactions_each_account = 0;
                 current_account_id += 1;
             }
@@ -507,8 +508,7 @@ impl BankSystemManager {
     async fn insert_loans(&self) {
         let mut current_user_id = 1;
         loop {
-            if current_user_id > 100 {
-                // NOTE: constant this and all others
+            if current_user_id > NUM_USERS {
                 break;
             }
 
@@ -569,8 +569,7 @@ impl BankSystemManager {
         let mut current_user_id = 1;
         let mut payments_per_loan_inserted = 0;
         loop {
-            if current_user_id > 100 {
-                // NOTE: constant this and all others
+            if current_user_id > NUM_USERS {
                 break;
             }
 
