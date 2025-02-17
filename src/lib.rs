@@ -7,6 +7,7 @@ use enums::audit_log_action::AuditLogAction;
 use enums::audit_log_subject_table::AuditLogSubjectTable;
 use enums::card_status::CardStatus;
 use enums::card_type::CardType;
+use enums::loan_status::LoanStatus;
 use enums::transaction_status::TransactionStatus;
 use enums::transaction_type::TransactionType;
 use enums::transfer_status::TransferStatus;
@@ -17,8 +18,9 @@ use fake::faker::phone_number::en::PhoneNumber;
 use fake::Fake;
 use models::account::AccountRowInsertion;
 use models::card::CardRowInsertion;
-use models::transactions::{self, TransactionRowInsertion};
-use models::transfer::{self, TransferRowInsertion};
+use models::loan::LoanRowInsertion;
+use models::transaction::TransactionRowInsertion;
+use models::transfer::TransferRowInsertion;
 use models::user::UserRowInsertion;
 use rand::Rng;
 use sqlx::{Pool, Postgres, Row};
@@ -500,12 +502,74 @@ impl BankSystemManager {
         }
     }
 
+    async fn insert_loans(&self) {
+        let mut current_user_id = 1;
+        loop {
+            if current_user_id > 100 {
+                // NOTE: constant this and all others
+                break;
+            }
+
+            let created_at = self.random_date_past(6, 5);
+
+            let loan = LoanRowInsertion {
+                user_id: current_user_id,
+                term_months: 24,
+                interest_rate: 4.50,
+                amount: format!("{:.2}", rand::rng().random_range(1..=10_000))
+                    .parse()
+                    .unwrap_or(100.00),
+                status: LoanStatus::Active.to_string(),
+                created_at,
+            };
+            match sqlx::query(
+                "
+                INSERT INTO public.loans
+                (user_id, term_months, interest_rate, amount, status, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING id;
+                ",
+            )
+            .bind(loan.user_id)
+            .bind(loan.term_months)
+            .bind(loan.interest_rate)
+            .bind(loan.amount)
+            .bind(loan.status)
+            .bind(loan.created_at)
+            .fetch_one(&self.db)
+            .await
+            {
+                Ok(row) => {
+                    let loan_id: i32 = row.get::<i32, _>("id");
+
+                    self.insert_audit_log(
+                        AuditLogSubjectTable::Loans.to_string(),
+                        loan_id,
+                        AuditLogAction::LoanCreated.to_string(),
+                        format!("loan id <{}>", loan_id),
+                        created_at,
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    println!(
+                        "Error: failed to insert row into 'loans' - <user_id={}> - <error={:?}>",
+                        loan.user_id, e
+                    );
+                }
+            }
+
+            current_user_id += 1;
+        }
+    }
+
     async fn insert_data(&self) {
         self.insert_users().await;
         self.insert_accounts().await;
         self.insert_cards().await;
         self.insert_transfers().await;
         self.insert_transactions().await;
+        self.insert_loans().await;
     }
 }
 
@@ -692,13 +756,48 @@ mod test {
     }
 
     #[sqlx::test(fixtures(
+        "../db/schema/users.sql",
+        "../db/schema/loans.sql",
+        "../db/schema/audit_logs.sql"
+    ))]
+    async fn test_loans_inserted(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_loans().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let loans = sqlx::query("SELECT * FROM public.loans")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let audit_logs = sqlx::query("SELECT * FROM public.audit_logs")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        assert_eq!(loans.len(), 100);
+        assert_eq!(audit_logs.len(), 200);
+        let loan_insertions: Vec<_> = audit_logs
+            .iter()
+            .filter(|log| {
+                AuditLogAction::from_string(log.get::<String, _>("action").as_str())
+                    == Some(AuditLogAction::LoanCreated)
+            })
+            .collect();
+        assert_eq!(loan_insertions.len(), 100);
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
         "../db/schema/audit_logs.sql",
         "../db/schema/users.sql",
         "../db/schema/accounts.sql",
         "../db/schema/cards.sql",
         "../db/schema/transfers.sql",
         "../db/schema/transactions.sql",
-        // "../db/schema/loans.sql",
+        "../db/schema/loans.sql",
         // "../db/schema/payments.sql",
     ))]
     async fn test_all_insertions(pool: PgPool) -> sqlx::Result<()> {
@@ -709,6 +808,7 @@ mod test {
         bank_system_manager.insert_cards().await;
         bank_system_manager.insert_transfers().await;
         bank_system_manager.insert_transactions().await;
+        bank_system_manager.insert_loans().await;
 
         let mut conn = pool.acquire().await?;
 
@@ -732,6 +832,10 @@ mod test {
             .fetch_all(&mut *conn)
             .await?;
 
+        let loans = sqlx::query("SELECT * FROM public.loans")
+            .fetch_all(&mut *conn)
+            .await?;
+
         let audit_logs = sqlx::query("SELECT * FROM public.audit_logs")
             .fetch_all(&mut *conn)
             .await?;
@@ -741,7 +845,8 @@ mod test {
         assert_eq!(cards.len(), 400);
         assert_eq!(transfers.len(), 1000);
         assert_eq!(transactions.len(), 400);
-        assert_eq!(audit_logs.len(), 2300);
+        assert_eq!(loans.len(), 100);
+        assert_eq!(audit_logs.len(), 2400);
 
         Ok(())
     }

@@ -3,4 +3,5 @@ pub mod audit;
 pub mod card;
 pub mod user;
 pub mod transfer;
-pub mod transactions;
+pub mod transaction;
+pub mod loan;
