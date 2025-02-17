@@ -1,8 +1,9 @@
+## Contents
+
 - [Intro](#intro)
 - [Schema](#schema)
+- [SQL Optimisation](#sql-optimisation)
 - [Caching](#caching)
-- [Optimisation Benchmarking](#optimisation-benchmarking)
-- [Cache Testing](#cache-testing)
 
 ## Intro
 This repo was my experimenting with SQL optimisation and code level caching.
@@ -30,6 +31,7 @@ erDiagram
     accounts ||--o{ transfers : receives
     accounts ||--o{ transactions : makes
     accounts ||--o{ payments : makes
+    accounts ||--|{ audit_logs : has
     accounts {
         int id PK
         int user_id FK "Idx"
@@ -40,6 +42,7 @@ erDiagram
         int num_active_cards "Denorm"
     }
 
+    cards ||--|{ audit_logs : has
     cards {
         int id PK
         int account_id FK
@@ -49,6 +52,7 @@ erDiagram
         varchar status
     }
 
+    transfers ||--|{ audit_logs : has
     transfers {
         int id PK
         int sender_account_id FK
@@ -59,16 +63,18 @@ erDiagram
         timestamp created_at
     }
 
+    transactions ||--|{ audit_logs : has
     transactions {
         int id PK
         int account_id FK "Idx"
-        varchar type
+        varchar transaction_type
         decimal amount "Idx"
         char currency
         varchar status
         timestamp created_at
     }
 
+    loans ||--|{ audit_logs : has
     loans ||--o{ payments : has
     loans {
         int id PK
@@ -80,6 +86,7 @@ erDiagram
         timestamp created_at
     }
 
+    payments ||--|{ audit_logs : has
     payments {
         int id PK
         int account_id FK
@@ -92,10 +99,11 @@ erDiagram
 
     audit_logs {
         int id PK
-        int user_id FK
+        int subject_table
+        int subject_id
         varchar action
         text details
-        timestamp timestamp
+        timestamp created_at
     }
     
     mat_view_loans_outstanding |o--o| users : "aggregates"
@@ -121,6 +129,10 @@ erDiagram
         text risk_level
     }
 ```
+
+## SQL Optimisation
+Temporary commands to run tests:
+docker run --rm -d --name test-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=testdb -p 5432:5432 postgres:latest
+DATABASE_URL="postgres://postgres:password@localhost:5432/testdb" cargo nextest run
+docker stop test-postgres
 ## Caching
-## Optimisation Benchmarking
-## Cache Testing
