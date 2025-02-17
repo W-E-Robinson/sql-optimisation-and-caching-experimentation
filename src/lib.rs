@@ -8,6 +8,7 @@ use enums::audit_log_subject_table::AuditLogSubjectTable;
 use enums::card_status::CardStatus;
 use enums::card_type::CardType;
 use enums::loan_status::LoanStatus;
+use enums::payment_status::PaymentStatus;
 use enums::transaction_status::TransactionStatus;
 use enums::transaction_type::TransactionType;
 use enums::transfer_status::TransferStatus;
@@ -19,6 +20,7 @@ use fake::Fake;
 use models::account::AccountRowInsertion;
 use models::card::CardRowInsertion;
 use models::loan::LoanRowInsertion;
+use models::payment::PaymentRowInsertion;
 use models::transaction::TransactionRowInsertion;
 use models::transfer::TransferRowInsertion;
 use models::user::UserRowInsertion;
@@ -563,6 +565,70 @@ impl BankSystemManager {
         }
     }
 
+    async fn insert_payments(&self) {
+        let mut current_user_id = 1;
+        let mut payments_per_loan_inserted = 0;
+        loop {
+            if current_user_id > 100 {
+                // NOTE: constant this and all others
+                break;
+            }
+
+            let created_at = self.random_date_past(6, 5);
+
+            let payment = PaymentRowInsertion {
+                account_id: ((current_user_id - 1) * 4) + 1,
+                loan_id: current_user_id,
+                amount: format!("{:.2}", rand::rng().random_range(1..=1_000))
+                    .parse()
+                    .unwrap_or(50.00),
+                status: PaymentStatus::Completed.to_string(),
+                created_at,
+            };
+            match sqlx::query(
+                "
+                INSERT INTO public.payments
+                (account_id, loan_id, amount, status, created_at)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING id;
+                ",
+            )
+            .bind(payment.account_id)
+            .bind(payment.loan_id)
+            .bind(payment.amount)
+            .bind(payment.status)
+            .bind(payment.created_at)
+            .fetch_one(&self.db)
+            .await
+            {
+                Ok(row) => {
+                    let payment_id: i32 = row.get::<i32, _>("id");
+
+                    self.insert_audit_log(
+                        AuditLogSubjectTable::Payments.to_string(),
+                        payment_id,
+                        AuditLogAction::PaymentCreated.to_string(),
+                        format!("loan id <{}>", payment_id),
+                        created_at,
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    println!(
+                        "Error: failed to insert row into 'payments' - <account_id={}> - <loan_id={}> - <error={:?}>",
+                        payment.account_id, payment.loan_id, e
+                    );
+                }
+            }
+
+            payments_per_loan_inserted += 1;
+            if payments_per_loan_inserted >= 3 {
+                payments_per_loan_inserted = 0;
+                current_user_id += 1;
+            }
+        }
+    }
+
     async fn insert_data(&self) {
         self.insert_users().await;
         self.insert_accounts().await;
@@ -570,6 +636,7 @@ impl BankSystemManager {
         self.insert_transfers().await;
         self.insert_transactions().await;
         self.insert_loans().await;
+        self.insert_payments().await;
     }
 }
 
@@ -791,6 +858,45 @@ mod test {
     }
 
     #[sqlx::test(fixtures(
+        "../db/schema/users.sql",
+        "../db/schema/loans.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/payments.sql",
+        "../db/schema/audit_logs.sql"
+    ))]
+    async fn test_payments_inserted(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_accounts().await;
+        bank_system_manager.insert_loans().await;
+        bank_system_manager.insert_payments().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let payments = sqlx::query("SELECT * FROM public.payments")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let audit_logs = sqlx::query("SELECT * FROM public.audit_logs")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        assert_eq!(payments.len(), 300);
+        assert_eq!(audit_logs.len(), 900);
+        let payment_insertions: Vec<_> = audit_logs
+            .iter()
+            .filter(|log| {
+                AuditLogAction::from_string(log.get::<String, _>("action").as_str())
+                    == Some(AuditLogAction::PaymentCreated)
+            })
+            .collect();
+        assert_eq!(payment_insertions.len(), 300);
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
         "../db/schema/audit_logs.sql",
         "../db/schema/users.sql",
         "../db/schema/accounts.sql",
@@ -798,7 +904,7 @@ mod test {
         "../db/schema/transfers.sql",
         "../db/schema/transactions.sql",
         "../db/schema/loans.sql",
-        // "../db/schema/payments.sql",
+        "../db/schema/payments.sql",
     ))]
     async fn test_all_insertions(pool: PgPool) -> sqlx::Result<()> {
         let bank_system_manager = BankSystemManager::new(pool.clone());
@@ -809,6 +915,7 @@ mod test {
         bank_system_manager.insert_transfers().await;
         bank_system_manager.insert_transactions().await;
         bank_system_manager.insert_loans().await;
+        bank_system_manager.insert_payments().await;
 
         let mut conn = pool.acquire().await?;
 
@@ -836,6 +943,10 @@ mod test {
             .fetch_all(&mut *conn)
             .await?;
 
+        let payments = sqlx::query("SELECT * FROM public.payments")
+            .fetch_all(&mut *conn)
+            .await?;
+
         let audit_logs = sqlx::query("SELECT * FROM public.audit_logs")
             .fetch_all(&mut *conn)
             .await?;
@@ -846,7 +957,8 @@ mod test {
         assert_eq!(transfers.len(), 1000);
         assert_eq!(transactions.len(), 400);
         assert_eq!(loans.len(), 100);
-        assert_eq!(audit_logs.len(), 2400);
+        assert_eq!(payments.len(), 300);
+        assert_eq!(audit_logs.len(), 2700);
 
         Ok(())
     }

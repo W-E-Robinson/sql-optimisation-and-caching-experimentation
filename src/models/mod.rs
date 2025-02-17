@@ -5,3 +5,4 @@ pub mod user;
 pub mod transfer;
 pub mod transaction;
 pub mod loan;
+pub mod payment;

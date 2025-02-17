@@ -7,3 +7,4 @@ pub mod transfer_status;
 pub mod transaction_status;
 pub mod transaction_type;
 pub mod loan_status;
+pub mod payment_status;
