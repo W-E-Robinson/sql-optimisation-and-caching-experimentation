@@ -346,7 +346,7 @@ impl BankSystemManager {
             // Set receiver to another account
             let receiver_account_id = (current_account_id + 200) % 400 + 1;
 
-            let created_at = self.random_date_past(-6, -12);
+            let created_at = self.random_date_past(6, 5);
 
             let transfer = TransferRowInsertion {
                 sender_account_id: current_account_id,
@@ -433,7 +433,7 @@ impl BankSystemManager {
                 continue;
             }
 
-            let created_at = self.random_date_past(-6, -12);
+            let created_at = self.random_date_past(6, 5);
             let transaction_type = match num_transactions_each_account % 2 {
                 0 => TransactionType::Deposit,
                 2 => TransactionType::Withdrawel,
