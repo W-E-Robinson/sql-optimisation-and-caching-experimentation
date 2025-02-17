@@ -5,15 +5,15 @@ use chrono::{DateTime, Duration, Utc};
 use enums::account_type::AccountType;
 use enums::audit_log_action::AuditLogAction;
 use enums::audit_log_subject_table::AuditLogSubjectTable;
-// use enums::card_status::CardStatus;
-// use enums::card_type::CardType;
-// use fake::faker::creditcard::en::CreditCardNumber;
+use enums::card_status::CardStatus;
+use enums::card_type::{self, CardType};
+use fake::faker::creditcard::en::CreditCardNumber;
 use fake::faker::internet::en::{SafeEmail, Username};
 use fake::faker::name::{en::FirstName, en::LastName};
 use fake::faker::phone_number::en::PhoneNumber;
 use fake::Fake;
 use models::account::AccountRowInsertion;
-// use models::card::CardRowInsertion;
+use models::card::CardRowInsertion;
 use models::user::UserRowInsertion;
 use rand::Rng;
 use sqlx::{Pool, Postgres, Row};
@@ -28,7 +28,7 @@ impl BankSystemManager {
         Self { db }
     }
 
-    fn random_date(&self, lower_limit: i64, upper_limit: i64) -> DateTime<Utc> {
+    fn random_date_past(&self, lower_limit: i64, upper_limit: i64) -> DateTime<Utc> {
         let now = Utc::now();
         let lower = now - Duration::weeks(lower_limit);
         let upper = now - Duration::weeks(upper_limit);
@@ -70,11 +70,11 @@ impl BankSystemManager {
     async fn insert_users(&self) {
         let mut users_count = 1;
         loop {
-            if users_count > 1000 {
+            if users_count > 100 {
                 break;
             }
 
-            let created_at = self.random_date(10, 9);
+            let created_at = self.random_date_past(10, 9);
 
             let user = UserRowInsertion {
                 public_id: Uuid::new_v4(),
@@ -132,7 +132,7 @@ impl BankSystemManager {
         let mut current_user_id = 1;
         let mut accounts_per_user = 0;
         loop {
-            if accounts_count > 4000 {
+            if accounts_count > 400 {
                 break;
             }
 
@@ -143,7 +143,7 @@ impl BankSystemManager {
                 3 => AccountType::Business,
                 _ => AccountType::Checking,
             };
-            let created_at = self.random_date(9, 8);
+            let created_at = self.random_date_past(9, 8);
             let num_active_cards = match account_type {
                 AccountType::Checking => 1,
                 AccountType::Savings => 0,
@@ -162,9 +162,9 @@ impl BankSystemManager {
             };
             match sqlx::query(
                 "
-                insert into public.accounts
+                INSERT INTO public.accounts
                 (user_id, account_type, balance, created_at, num_active_cards)
-                values ($1, $2, $3, $4, $5)
+                VALUES ($1, $2, $3, $4, $5)
                 RETURNING id;
                 ",
             )
@@ -205,73 +205,112 @@ impl BankSystemManager {
         }
     }
 
-    // async fn insert_cards(&self) {
-    //     let mut current_account_id = 1;
-    //     let mut current_card_type = CardType::Debit;
-    //     loop {
-    //         if current_account_id > 4000 {
-    //             break;
-    //         }
+    async fn insert_cards(&self) {
+        let mut current_account_id = 1;
+        let mut is_business_account_debit_inserted = false;
+        loop {
+            if current_account_id > 400 {
+                break;
+            }
 
-    //         let account_type = match current_account_id % 4 {
-    //             0 => AccountType::Checking,
-    //             1 => AccountType::Savings,
-    //             2 => AccountType::Credit,
-    //             0 => AccountType::Business,
-    //             _ => AccountType::Checking, // NOTE: correct?
-    //         };
-    //         let created_at = self.random_date(-6, -12);
+            let account_type = match current_account_id % 4 {
+                1 => AccountType::Checking,
+                2 => AccountType::Savings,
+                3 => AccountType::Credit,
+                0 => AccountType::Business,
+                _ => {
+                    println!(
+                        "Warning: failed to find account type for account <id={}>, defaulting to Checking account",
+                        current_account_id
+                    );
+                    AccountType::Checking
+                }
+            };
 
-    //         let card = CardRowInsertion {
-    //             account_id: current_account_id,
-    //             card_number: CreditCardNumber().fake(),
-    //             card_type: current_card_type.to_string(),
-    //             expiration_date: created_at,
-    //             status: CardStatus::Active.to_string(),
-    //         };
-    //         if let Err(e) = sqlx::query(
-    //             "
-    //             insert into public.cards
-    //             (account_id, card_number, card_type, expiration_date, status)
-    //             values ($1, $2, $3, $4, $5);
-    //             ",
-    //         )
-    //         .bind(card.account_id)
-    //         .bind(card.card_number)
-    //         .bind(card.card_type)
-    //         .bind(card.expiration_date)
-    //         .bind(card.status)
-    //         .execute(&self.db)
-    //         .await
-    //         {
-    //             println!(
-    //                 "Error: failed to insert row into 'card' - <card_id={}> - <error={:?}>",
-    //                 // NOTE: showing id is silly! it won't be the id as it won't have been entered?
-    //                 1,
-    //                 e
-    //             );
-    //         } else {
-    //             // self.insert_audit_log( // Audit always links to user_id? = no? = all feeds into
-    //             //                        // audit = how keep track if something that audits that
-    //             //                        then disapears? how keep track?
-    //             //     current_user_id,
-    //             //     AuditLogAction::AccountCreated.to_string(),
-    //             //     format!("account id <{}>", accounts_count),
-    //             //     created_at,
-    //             // )
-    //             // .await
-    //         }
+            if account_type == AccountType::Savings {
+                current_account_id += 1;
+                continue;
+            }
 
-    //         if account_type == AccountType::Checking {
-    //             account_type = AccountType::Credit;
-    //         }
-    //     }
-    // }
+            let card_type = match account_type {
+                AccountType::Checking => CardType::Debit,
+                AccountType::Credit => CardType::Credit,
+                AccountType::Business => {
+                    if !is_business_account_debit_inserted {
+                        is_business_account_debit_inserted = true;
+                        CardType::Debit
+                    } else {
+                        is_business_account_debit_inserted = false;
+                        CardType::Credit
+                    }
+                }
+                _ => {
+                    println!(
+                        "Warning: failed to find appropriate card type for account <type={}>, for account <id={}>, defaulting to Debit card",
+                        account_type.to_string(), current_account_id,
+                    );
+                    CardType::Debit
+                }
+            };
+
+            let created_at = self.random_date_past(-6, -12);
+
+            let card = CardRowInsertion {
+                account_id: current_account_id,
+                card_number: CreditCardNumber().fake(),
+                card_type: card_type.to_string(),
+                expiration_date: created_at,
+                status: CardStatus::Active.to_string(),
+            };
+            match sqlx::query(
+                "
+                INSERT INTO public.cards
+                (account_id, card_number, card_type, expiration_date, status)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING id;
+                ",
+            )
+            .bind(card.account_id)
+            .bind(card.card_number)
+            .bind(card.card_type)
+            .bind(card.expiration_date)
+            .bind(card.status)
+            .fetch_one(&self.db)
+            .await
+            {
+                Ok(row) => {
+                    let card_id: i32 = row.get::<i32, _>("id");
+
+                    self.insert_audit_log(
+                        AuditLogSubjectTable::Cards.to_string(),
+                        card_id,
+                        AuditLogAction::CardCreated.to_string(),
+                        format!("card id <{}>", card_id),
+                        created_at,
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    println!(
+                        "Error: failed to insert row into 'cards' - <account_id={}> - <error={:?}>",
+                        card.account_id, e
+                    );
+                }
+            }
+            if account_type == AccountType::Checking
+                || account_type == AccountType::Credit
+                || (account_type == AccountType::Business
+                    && is_business_account_debit_inserted == false)
+            {
+                current_account_id += 1;
+            }
+        }
+    }
 
     async fn insert_data(&self) {
         self.insert_users().await;
         self.insert_accounts().await;
-        // self.insert_cards().await;
+        self.insert_cards().await;
     }
 }
 
@@ -282,7 +321,7 @@ mod test {
     use super::*;
 
     #[sqlx::test(fixtures("../db/schema/users.sql", "../db/schema/audit_logs.sql"))]
-    async fn test_users_created(pool: PgPool) -> sqlx::Result<()> {
+    async fn test_users_inserted(pool: PgPool) -> sqlx::Result<()> {
         let bank_system_manager = BankSystemManager::new(pool.clone());
 
         bank_system_manager.insert_users().await;
@@ -297,8 +336,8 @@ mod test {
             .fetch_all(&mut *conn)
             .await?;
 
-        assert_eq!(users.len(), 1000);
-        assert_eq!(audit_logs.len(), 1000);
+        assert_eq!(users.len(), 100);
+        assert_eq!(audit_logs.len(), 100);
         let user_insertions: Vec<_> = audit_logs
             .iter()
             .filter(|log| {
@@ -306,7 +345,7 @@ mod test {
                     == Some(AuditLogAction::UserCreated)
             })
             .collect();
-        assert_eq!(user_insertions.len(), 1000);
+        assert_eq!(user_insertions.len(), 100);
 
         Ok(())
     }
@@ -316,7 +355,7 @@ mod test {
         "../db/schema/accounts.sql",
         "../db/schema/audit_logs.sql"
     ))]
-    async fn test_accounts_created(pool: PgPool) -> sqlx::Result<()> {
+    async fn test_accounts_inserted(pool: PgPool) -> sqlx::Result<()> {
         let bank_system_manager = BankSystemManager::new(pool.clone());
 
         bank_system_manager.insert_users().await;
@@ -332,8 +371,8 @@ mod test {
             .fetch_all(&mut *conn)
             .await?;
 
-        assert_eq!(accounts.len(), 4000);
-        assert_eq!(audit_logs.len(), 5000);
+        assert_eq!(accounts.len(), 400);
+        assert_eq!(audit_logs.len(), 500);
         let account_insertions: Vec<_> = audit_logs
             .iter()
             .filter(|log| {
@@ -341,7 +380,44 @@ mod test {
                     == Some(AuditLogAction::AccountCreated)
             })
             .collect();
-        assert_eq!(account_insertions.len(), 4000);
+        assert_eq!(account_insertions.len(), 400);
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/users.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/cards.sql",
+        "../db/schema/audit_logs.sql"
+    ))]
+    async fn test_cards_inserted(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_accounts().await;
+        bank_system_manager.insert_cards().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let cards = sqlx::query("SELECT * FROM public.cards")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let audit_logs = sqlx::query("SELECT * FROM public.audit_logs")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        assert_eq!(cards.len(), 400);
+        assert_eq!(audit_logs.len(), 900);
+        let card_insertions: Vec<_> = audit_logs
+            .iter()
+            .filter(|log| {
+                AuditLogAction::from_string(log.get::<String, _>("action").as_str())
+                    == Some(AuditLogAction::CardCreated)
+            })
+            .collect();
+        assert_eq!(card_insertions.len(), 400);
 
         Ok(())
     }
