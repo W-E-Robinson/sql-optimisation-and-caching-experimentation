@@ -2,12 +2,12 @@ CREATE TABLE audit_logs (
     id SERIAL PRIMARY KEY,
     subject_table VARCHAR(50) CHECK (
         subject_table IN (
-            'users'
-            'accounts'
-            'cards'
-            'transfers'
-            'transactions'
-            'loans'
+            'users',
+            'accounts',
+            'cards',
+            'transfers',
+            'transactions',
+            'loans',
             'payments'
         )
     ),

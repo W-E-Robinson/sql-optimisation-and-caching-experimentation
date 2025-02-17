@@ -311,7 +311,6 @@ mod test {
         Ok(())
     }
 
-    // NOTE: after each to clear database = or sqlx takes care of?
     #[sqlx::test(fixtures(
         "../db/schema/users.sql",
         "../db/schema/accounts.sql",
