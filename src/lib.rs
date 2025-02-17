@@ -442,7 +442,7 @@ impl BankSystemManager {
             let created_at = self.random_date_past(6, 5);
             let transaction_type = match num_transactions_each_account % 2 {
                 0 => TransactionType::Deposit,
-                2 => TransactionType::Withdrawel,
+                1 => TransactionType::Withdrawal,
                 _ => {
                     println!(
                         "Warning: failed to create correct transaction type for account <id={}>, defaulting to Deposit",
