@@ -551,4 +551,53 @@ mod test {
 
         Ok(())
     }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/audit_logs.sql",
+        "../db/schema/users.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/cards.sql",
+        "../db/schema/transfers.sql"
+        // "../db/schema/loans.sql",
+        // "../db/schema/payments.sql",
+        // "../db/schema/transactions.sql",
+    ))]
+    async fn test_all_insertions(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_accounts().await;
+        bank_system_manager.insert_cards().await;
+        bank_system_manager.insert_transfers().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let users = sqlx::query("SELECT * FROM public.users")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let accounts = sqlx::query("SELECT * FROM public.accounts")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let cards = sqlx::query("SELECT * FROM public.cards")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let transfers = sqlx::query("SELECT * FROM public.transfers")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let audit_logs = sqlx::query("SELECT * FROM public.audit_logs")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        assert_eq!(users.len(), 100);
+        assert_eq!(accounts.len(), 400);
+        assert_eq!(cards.len(), 400);
+        assert_eq!(transfers.len(), 1000);
+        assert_eq!(audit_logs.len(), 1900);
+
+        Ok(())
+    }
 }
