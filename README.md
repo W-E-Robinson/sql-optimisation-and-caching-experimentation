@@ -67,7 +67,7 @@ erDiagram
     transactions {
         int id PK
         int account_id FK "Idx"
-        varchar type
+        varchar transaction_type
         decimal amount "Idx"
         char currency
         varchar status

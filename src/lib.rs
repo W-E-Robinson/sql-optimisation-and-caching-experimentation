@@ -6,7 +6,9 @@ use enums::account_type::AccountType;
 use enums::audit_log_action::AuditLogAction;
 use enums::audit_log_subject_table::AuditLogSubjectTable;
 use enums::card_status::CardStatus;
-use enums::card_type::{self, CardType};
+use enums::card_type::CardType;
+use enums::transaction_status::TransactionStatus;
+use enums::transaction_type::TransactionType;
 use enums::transfer_status::TransferStatus;
 use fake::faker::creditcard::en::CreditCardNumber;
 use fake::faker::internet::en::{SafeEmail, Username};
@@ -15,6 +17,7 @@ use fake::faker::phone_number::en::PhoneNumber;
 use fake::Fake;
 use models::account::AccountRowInsertion;
 use models::card::CardRowInsertion;
+use models::transactions::{self, TransactionRowInsertion};
 use models::transfer::{self, TransferRowInsertion};
 use models::user::UserRowInsertion;
 use rand::Rng;
@@ -399,11 +402,110 @@ impl BankSystemManager {
         }
     }
 
+    async fn insert_transactions(&self) {
+        let mut current_account_id = 1;
+        let mut num_transactions_each_account = 0;
+        loop {
+            if current_account_id > 400 {
+                // NOTE: constant this and all others
+                break;
+            }
+
+            let account_type = match current_account_id % 4 {
+                1 => AccountType::Checking,
+                2 => AccountType::Savings,
+                3 => AccountType::Credit,
+                0 => AccountType::Business,
+                _ => {
+                    println!(
+                        "Warning: failed to find account type for account <id={}>, defaulting to Credit account",
+                        current_account_id
+                    );
+                    AccountType::Credit
+                }
+            };
+
+            if account_type == AccountType::Savings {
+                current_account_id += 1;
+                continue;
+            } else if account_type == AccountType::Credit {
+                current_account_id += 1;
+                continue;
+            }
+
+            let created_at = self.random_date_past(-6, -12);
+            let transaction_type = match num_transactions_each_account % 2 {
+                0 => TransactionType::Deposit,
+                2 => TransactionType::Withdrawel,
+                _ => {
+                    println!(
+                        "Warning: failed to create correct transaction type for account <id={}>, defaulting to Deposit",
+                        current_account_id
+                    );
+                    TransactionType::Deposit
+                }
+            };
+
+            let transaction = TransactionRowInsertion {
+                account_id: current_account_id,
+                transaction_type: transaction_type.to_string(),
+                amount: format!("{:.2}", rand::rng().random_range(1..=1_000))
+                    .parse()
+                    .unwrap_or(1.00),
+                status: TransactionStatus::Pending.to_string(),
+                created_at,
+            };
+            match sqlx::query(
+                "
+                INSERT INTO public.transactions
+                (account_id, transaction_type, amount, status, created_at)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING id;
+                ",
+            )
+            .bind(transaction.account_id)
+            .bind(transaction.transaction_type)
+            .bind(transaction.amount)
+            .bind(transaction.status)
+            .bind(transaction.created_at)
+            .fetch_one(&self.db)
+            .await
+            {
+                Ok(row) => {
+                    let transaction_id: i32 = row.get::<i32, _>("id");
+
+                    self.insert_audit_log(
+                        AuditLogSubjectTable::Transactions.to_string(),
+                        transaction_id,
+                        AuditLogAction::TransactionCreated.to_string(),
+                        format!("transaction id <{}>", transaction_id),
+                        created_at,
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    println!(
+                        "Error: failed to insert row into 'transactions' - <account_id={}> - <error={:?}>",
+                        transaction.account_id, e
+                    );
+                }
+            }
+
+            num_transactions_each_account += 1;
+            if num_transactions_each_account == 2 {
+                // NOTE: constant this too
+                num_transactions_each_account = 0;
+                current_account_id += 1;
+            }
+        }
+    }
+
     async fn insert_data(&self) {
         self.insert_users().await;
         self.insert_accounts().await;
         self.insert_cards().await;
         self.insert_transfers().await;
+        self.insert_transactions().await;
     }
 }
 
@@ -553,14 +655,51 @@ mod test {
     }
 
     #[sqlx::test(fixtures(
+        "../db/schema/users.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/transactions.sql",
+        "../db/schema/audit_logs.sql"
+    ))]
+    async fn test_transactions_inserted(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_accounts().await;
+        bank_system_manager.insert_transactions().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let transactions = sqlx::query("SELECT * FROM public.transactions")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let audit_logs = sqlx::query("SELECT * FROM public.audit_logs")
+            .fetch_all(&mut *conn)
+            .await?;
+
+        assert_eq!(transactions.len(), 400);
+        assert_eq!(audit_logs.len(), 900);
+        let transaction_insertions: Vec<_> = audit_logs
+            .iter()
+            .filter(|log| {
+                AuditLogAction::from_string(log.get::<String, _>("action").as_str())
+                    == Some(AuditLogAction::TransactionCreated)
+            })
+            .collect();
+        assert_eq!(transaction_insertions.len(), 400);
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
         "../db/schema/audit_logs.sql",
         "../db/schema/users.sql",
         "../db/schema/accounts.sql",
         "../db/schema/cards.sql",
-        "../db/schema/transfers.sql"
+        "../db/schema/transfers.sql",
+        "../db/schema/transactions.sql",
         // "../db/schema/loans.sql",
         // "../db/schema/payments.sql",
-        // "../db/schema/transactions.sql",
     ))]
     async fn test_all_insertions(pool: PgPool) -> sqlx::Result<()> {
         let bank_system_manager = BankSystemManager::new(pool.clone());
@@ -569,6 +708,7 @@ mod test {
         bank_system_manager.insert_accounts().await;
         bank_system_manager.insert_cards().await;
         bank_system_manager.insert_transfers().await;
+        bank_system_manager.insert_transactions().await;
 
         let mut conn = pool.acquire().await?;
 
@@ -588,6 +728,10 @@ mod test {
             .fetch_all(&mut *conn)
             .await?;
 
+        let transactions = sqlx::query("SELECT * FROM public.transactions")
+            .fetch_all(&mut *conn)
+            .await?;
+
         let audit_logs = sqlx::query("SELECT * FROM public.audit_logs")
             .fetch_all(&mut *conn)
             .await?;
@@ -596,7 +740,8 @@ mod test {
         assert_eq!(accounts.len(), 400);
         assert_eq!(cards.len(), 400);
         assert_eq!(transfers.len(), 1000);
-        assert_eq!(audit_logs.len(), 1900);
+        assert_eq!(transactions.len(), 400);
+        assert_eq!(audit_logs.len(), 2300);
 
         Ok(())
     }
