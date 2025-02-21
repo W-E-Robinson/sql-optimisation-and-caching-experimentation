@@ -999,22 +999,21 @@ mod test {
         let raw_duration = raw_start.elapsed();
 
         let mat_start = Instant::now();
-        let mat_view =
-            sqlx::query("SELECT * FROM public.average_transaction_amount")
-                .fetch_all(&mut *conn)
-                .await?;
+        let mat_view = sqlx::query("SELECT * FROM public.average_transaction_amount")
+            .fetch_all(&mut *conn)
+            .await?;
         let mat_duration = mat_start.elapsed();
 
-        assert_eq!(
-            raw_sql.len(),
-            mat_view.len()
-        );
+        assert_eq!(raw_sql.len(), mat_view.len());
 
+        let first_row = mat_view.first();
+        println!("First row: {:?}", first_row);
         println!("Time for raw SQL query: {:?}", raw_duration);
         println!("Time for materialized view query: {:?}", mat_duration);
         println!(
             "Percentage materialized view faster than raw SQL query: {:?}",
-            ((raw_duration.as_secs_f64() - mat_duration.as_secs_f64())/ raw_duration.as_secs_f64())
+            ((raw_duration.as_secs_f64() - mat_duration.as_secs_f64())
+                / raw_duration.as_secs_f64())
                 * 100.00
         );
 
@@ -1064,22 +1063,21 @@ mod test {
         let raw_duration = raw_start.elapsed();
 
         let mat_start = Instant::now();
-        let mat_view =
-            sqlx::query("SELECT * FROM public.loans_outstanding")
-                .fetch_all(&mut *conn)
-                .await?;
+        let mat_view = sqlx::query("SELECT * FROM public.loans_outstanding")
+            .fetch_all(&mut *conn)
+            .await?;
         let mat_duration = mat_start.elapsed();
 
-        assert_eq!(
-            raw_sql.len(),
-            mat_view.len()
-        );
+        assert_eq!(raw_sql.len(), mat_view.len());
 
+        let first_row = mat_view.first();
+        println!("First row: {:?}", first_row);
         println!("Time for raw SQL query: {:?}", raw_duration);
         println!("Time for materialized view query: {:?}", mat_duration);
         println!(
             "Percentage materialized view faster than raw SQL query: {:?}",
-            ((raw_duration.as_secs_f64() - mat_duration.as_secs_f64())/ raw_duration.as_secs_f64())
+            ((raw_duration.as_secs_f64() - mat_duration.as_secs_f64())
+                / raw_duration.as_secs_f64())
                 * 100.00
         );
 
@@ -1149,25 +1147,29 @@ mod test {
         let raw_duration = raw_start.elapsed();
 
         let mat_start = Instant::now();
-        let mat_view =
-            sqlx::query("SELECT * FROM public.suspicious_transactions")
-                .fetch_all(&mut *conn)
-                .await?;
+        let mat_view = sqlx::query("SELECT * FROM public.suspicious_transactions")
+            .fetch_all(&mut *conn)
+            .await?;
         let mat_duration = mat_start.elapsed();
 
-        assert_eq!(
-            raw_sql.len(),
-            mat_view.len()
-        );
+        assert_eq!(raw_sql.len(), mat_view.len());
 
+        let first_nameistghejkfhjdkfjdsafjdsakfds = mat_view.first();
+        println!("First row: {:?}", first_row);
         println!("Time for raw SQL query: {:?}", raw_duration);
         println!("Time for materialized view query: {:?}", mat_duration);
         println!(
             "Percentage materialized view faster than raw SQL query: {:?}",
-            ((raw_duration.as_secs_f64() - mat_duration.as_secs_f64())/ raw_duration.as_secs_f64())
+            ((raw_duration.as_secs_f64() - mat_duration.as_secs_f64())
+                / raw_duration.as_secs_f64())
                 * 100.00
         );
 
         Ok(())
     }
 }
+// rst row: Some(PgRow {user_id: 1, sum_loans_outstanding: (unknown SQL type NUMERIC: SQLx feature bigdecimal not enabled)})
+
+// 2) NOTE: improve testing specificity, at least log things out = go back do mats then move on
+// 3) NOTE: do some testing with those base_queries = but dont need all
+// 4) NOTE: leave notes on the various mat views and how *good* they are
