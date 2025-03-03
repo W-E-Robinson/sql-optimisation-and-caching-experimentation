@@ -1,13 +1,13 @@
 pub enum TransactionType {
     Deposit,
-    Withdrawel,
+    Withdrawal,
 }
 
 impl TransactionType {
     pub fn to_string(&self) -> String {
         match self {
             Self::Deposit => String::from("deposit"),
-            Self::Withdrawel => String::from("withdrawel"),
+            Self::Withdrawal => String::from("withdrawal"),
         }
     }
 }
@@ -22,7 +22,7 @@ mod test {
     }
 
     #[test]
-    fn test_transaction_type_to_string_withdrawel() {
-        assert_eq!(TransactionType::Withdrawel.to_string(), "withdrawel");
+    fn test_transaction_type_to_string_withdrawal() {
+        assert_eq!(TransactionType::Withdrawal.to_string(), "withdrawal");
     }
 }

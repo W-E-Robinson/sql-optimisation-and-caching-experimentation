@@ -1,3 +1,4 @@
+-- write likely outpaces read so not good mat view candidate, but good exercise anyway.
 CREATE MATERIALIZED VIEW loans_outstanding AS
 SELECT 
     users.id AS user_id,
