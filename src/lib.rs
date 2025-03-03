@@ -1006,6 +1006,7 @@ mod test {
         let mat_duration = mat_start.elapsed();
 
         assert_eq!(raw_sql.len(), mat_view.len());
+        println!("mat_view len = {:?}", mat_view.len());
 
         let mut rows_printed = 0;
         for row in mat_view.iter() {
@@ -1077,6 +1078,7 @@ mod test {
         let mat_duration = mat_start.elapsed();
 
         assert_eq!(raw_sql.len(), mat_view.len());
+        println!("mat_view len = {:?}", mat_view.len());
 
         let mut rows_printed = 0;
         for row in mat_view.iter() {
@@ -1149,7 +1151,7 @@ mod test {
                 tc.transaction_id,
                 tc.amount,
                 CASE 
-                    WHEN tc.amount > (ata.average_transaction * 1.5) THEN 'high value transaction' -- average_transaction multiplier so low to force output
+                    WHEN tc.amount > (ata.average_transaction * 1.5) THEN 'high value transaction'
                     WHEN tc.amount < 10 AND tc.transaction_count_last_10_minutes > 5 THEN 'potential rapid successive small transactions'
                     ELSE 'not suspicious'
                 END AS risk_level
@@ -1172,7 +1174,7 @@ mod test {
         let mat_duration = mat_start.elapsed();
 
         assert_eq!(raw_sql.len(), mat_view.len());
-        println!("len = {:?}", mat_view.len());
+        println!("mat_view len = {:?}", mat_view.len());
 
         let mut rows_printed = 0;
         for row in mat_view.iter() {
@@ -1194,7 +1196,189 @@ mod test {
 
         Ok(())
     }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/audit_logs.sql",
+        "../db/schema/users.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/cards.sql",
+    ))]
+    async fn test_cards_per_user(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_accounts().await;
+        bank_system_manager.insert_cards().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let query = sqlx::query(
+            "
+            WITH cards_per_account AS (
+                SELECT 
+                    accounts.user_id AS account_user_id,
+                    COUNT(CASE WHEN cards.status = 'active' THEN cards.id END) AS cards_count
+                FROM 
+                    accounts
+                LEFT JOIN 
+                    cards ON accounts.id = cards.account_id
+                GROUP BY 
+                    accounts.user_id
+            )
+            SELECT 
+                users.id AS user_id,
+                COALESCE(SUM(cards_per_account.cards_count), 0 ) AS cards_total
+            FROM users
+            LEFT JOIN cards_per_account
+            ON users.id = cards_per_account.account_user_id
+            GROUP BY users.id;
+            ",
+        )
+        .fetch_all(&mut *conn)
+        .await?;
+
+        println!("query len = {:?}", query.len());
+        let mut rows_printed = 0;
+        for row in query.iter() {
+            if rows_printed == 5 {
+                break;
+            }
+            println!("{:?}", row);
+            rows_printed += 1;
+        }
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/audit_logs.sql",
+        "../db/schema/users.sql",
+        "../db/schema/loans.sql",
+        "../db/schema/accounts.sql",
+        "../db/schema/transactions.sql",
+        "../db/schema/transfers.sql",
+        "../db/schema/payments.sql",
+    ))]
+    async fn test_time_to_transaction(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_loans().await;
+        bank_system_manager.insert_accounts().await;
+        bank_system_manager.insert_transactions().await;
+        bank_system_manager.insert_transfers().await;
+        bank_system_manager.insert_payments().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let query = sqlx::query(
+            "
+            SELECT 
+                AVG(EXTRACT(EPOCH FROM (action.created_at - accounts.created_at))) AS average_time
+            FROM 
+                accounts
+            JOIN (
+                SELECT created_at, account_id FROM transactions
+                UNION ALL
+                SELECT created_at, sender_account_id FROM transfers
+                UNION ALL
+                SELECT created_at, account_id FROM payments
+            ) AS action 
+            ON accounts.id = action.account_id
+            WHERE action.created_at >= accounts.created_at;
+            ",
+        )
+        .fetch_all(&mut *conn)
+        .await?;
+
+        println!("average_time row = {:?}", query.first());
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/audit_logs.sql",
+        "../db/schema/users.sql",
+        "../db/schema/accounts.sql",
+    ))]
+    async fn test_total_balances(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_accounts().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let query = sqlx::query(
+            "
+            SELECT 
+                users.id AS user_id,
+                SUM(accounts.balance) AS total_balance
+            FROM 
+                users
+            JOIN 
+                accounts ON users.id = accounts.user_id
+            GROUP BY 
+                users.id;
+            ",
+        )
+        .fetch_all(&mut *conn)
+        .await?;
+
+        println!("query len = {:?}", query.len());
+        let mut rows_printed = 0;
+        for row in query.iter() {
+            if rows_printed == 5 {
+                break;
+            }
+            println!("{:?}", row);
+            rows_printed += 1;
+        }
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures(
+        "../db/schema/audit_logs.sql",
+        "../db/schema/users.sql",
+        "../db/schema/loans.sql",
+    ))]
+    async fn test_total_loans(pool: PgPool) -> sqlx::Result<()> {
+        let bank_system_manager = BankSystemManager::new(pool.clone());
+
+        bank_system_manager.insert_users().await;
+        bank_system_manager.insert_loans().await;
+
+        let mut conn = pool.acquire().await?;
+
+        let query = sqlx::query(
+            "
+            SELECT 
+                users.id AS user_id,
+                SUM(loans.amount) AS loans_outstanding
+            FROM 
+                users
+            JOIN 
+                loans ON users.id = loans.user_id AND loans.status = 'active'
+            GROUP BY 
+                users.id;
+            ",
+        )
+        .fetch_all(&mut *conn)
+        .await?;
+
+        println!("query len = {:?}", query.len());
+        let mut rows_printed = 0;
+        for row in query.iter() {
+            if rows_printed == 5 {
+                break;
+            }
+            println!("{:?}", row);
+            rows_printed += 1;
+        }
+
+        Ok(())
+    }
 }
 
-// 3) NOTE: do some testing with those base_queries = but dont need all
 // 4) NOTE: leave notes on the various mat views and how *good* they are
