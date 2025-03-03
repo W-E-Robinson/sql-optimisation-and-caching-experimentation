@@ -455,9 +455,9 @@ impl BankSystemManager {
             let transaction = TransactionRowInsertion {
                 account_id: current_account_id,
                 transaction_type: transaction_type.to_string(),
-                amount: format!("{:.2}", rand::rng().random_range(1..=1_000))
+                amount: format!("{:.2}", rand::rng().random_range(1..=100_000))
                     .parse()
-                    .unwrap_or(1.00),
+                    .unwrap_or(1000.00),
                 status: TransactionStatus::Pending.to_string(),
                 created_at,
             };
@@ -518,9 +518,9 @@ impl BankSystemManager {
                 user_id: current_user_id,
                 term_months: 24,
                 interest_rate: 4.50,
-                amount: format!("{:.2}", rand::rng().random_range(1..=10_000))
+                amount: format!("{:.2}", rand::rng().random_range(1..=100_000))
                     .parse()
-                    .unwrap_or(100.00),
+                    .unwrap_or(10000.00),
                 status: LoanStatus::Active.to_string(),
                 created_at,
             };
@@ -641,6 +641,7 @@ impl BankSystemManager {
 
 #[cfg(test)]
 mod test {
+    use fake::faker::name::raw::FirstName;
     use sqlx::{PgPool, Row};
     use std::time::Instant;
 
@@ -1006,8 +1007,15 @@ mod test {
 
         assert_eq!(raw_sql.len(), mat_view.len());
 
-        let first_row = mat_view.first();
-        println!("First row: {:?}", first_row);
+        let mut rows_printed = 0;
+        for row in mat_view.iter() {
+            if rows_printed == 5 {
+                break;
+            }
+            println!("{:?}", row);
+            rows_printed += 1;
+        }
+
         println!("Time for raw SQL query: {:?}", raw_duration);
         println!("Time for materialized view query: {:?}", mat_duration);
         println!(
@@ -1070,8 +1078,15 @@ mod test {
 
         assert_eq!(raw_sql.len(), mat_view.len());
 
-        let first_row = mat_view.first();
-        println!("First row: {:?}", first_row);
+        let mut rows_printed = 0;
+        for row in mat_view.iter() {
+            if rows_printed == 5 {
+                break;
+            }
+            println!("{:?}", row);
+            rows_printed += 1;
+        }
+
         println!("Time for raw SQL query: {:?}", raw_duration);
         println!("Time for materialized view query: {:?}", mat_duration);
         println!(
@@ -1105,6 +1120,10 @@ mod test {
 
         let mut conn = pool.acquire().await?;
 
+        sqlx::query("REFRESH MATERIALIZED VIEW public.average_transaction_amount")
+            .execute(&mut *conn)
+            .await?;
+
         sqlx::query("REFRESH MATERIALIZED VIEW public.suspicious_transactions")
             .execute(&mut *conn)
             .await?;
@@ -1114,7 +1133,6 @@ mod test {
             "
             WITH transaction_counts AS (
                 SELECT 
-                    a.user_id,
                     t.account_id,
                     t.id AS transaction_id,
                     t.amount,
@@ -1124,22 +1142,23 @@ mod test {
                         RANGE BETWEEN INTERVAL '10 minutes' PRECEDING AND CURRENT ROW
                     ) AS transaction_count_last_10_minutes
                 FROM transactions t
-                JOIN accounts a ON t.account_id = a.id
                 WHERE t.status IN ('completed', 'pending')
             )
             SELECT 
-                tc.user_id,
                 tc.account_id,
                 tc.transaction_id,
                 tc.amount,
                 CASE 
-                    WHEN tc.amount > (ata.average_transaction * 5) THEN 'high value transaction'
+                    WHEN tc.amount > (ata.average_transaction * 1.5) THEN 'high value transaction' -- average_transaction multiplier so low to force output
                     WHEN tc.amount < 10 AND tc.transaction_count_last_10_minutes > 5 THEN 'potential rapid successive small transactions'
-                    ELSE 'normal'
+                    ELSE 'not suspicious'
                 END AS risk_level
             FROM transaction_counts tc
             JOIN average_transaction_amount ata 
-                ON tc.account_id = ata.account_id;
+                ON tc.account_id = ata.account_id
+            WHERE 
+                (tc.amount > (ata.average_transaction * 1.5) OR
+                (tc.amount < 10 AND tc.transaction_count_last_10_minutes > 5));
             ",
         )
         .fetch_all(&mut *conn)
@@ -1153,9 +1172,17 @@ mod test {
         let mat_duration = mat_start.elapsed();
 
         assert_eq!(raw_sql.len(), mat_view.len());
+        println!("len = {:?}", mat_view.len());
 
-        let first_nameistghejkfhjdkfjdsafjdsakfds = mat_view.first();
-        println!("First row: {:?}", first_row);
+        let mut rows_printed = 0;
+        for row in mat_view.iter() {
+            if rows_printed == 5 {
+                break;
+            }
+            println!("{:?}", row);
+            rows_printed += 1;
+        }
+
         println!("Time for raw SQL query: {:?}", raw_duration);
         println!("Time for materialized view query: {:?}", mat_duration);
         println!(
@@ -1168,8 +1195,6 @@ mod test {
         Ok(())
     }
 }
-// rst row: Some(PgRow {user_id: 1, sum_loans_outstanding: (unknown SQL type NUMERIC: SQLx feature bigdecimal not enabled)})
 
-// 2) NOTE: improve testing specificity, at least log things out = go back do mats then move on
 // 3) NOTE: do some testing with those base_queries = but dont need all
 // 4) NOTE: leave notes on the various mat views and how *good* they are
