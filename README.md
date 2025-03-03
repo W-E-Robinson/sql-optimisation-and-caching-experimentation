@@ -131,8 +131,17 @@ erDiagram
 ```
 
 ## SQL Optimisation
-Temporary commands to run tests:
+The SQLx cargo package testing functionality is used to test schema data insertion, materialized view vs raw query timings, and some sample queries.
+To run:
+```sh
 docker run --rm -d --name test-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=testdb -p 5432:5432 postgres:latest
+```
+```sh
 DATABASE_URL="postgres://postgres:password@localhost:5432/testdb" cargo nextest run --nocapture
+```
+```sh
 docker stop test-postgres
+```
+
 ## Caching
+To do
