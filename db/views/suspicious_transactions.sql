@@ -1,3 +1,4 @@
+-- write likely outpaces read so not good mat view candidate, but good exercise anyway.
 CREATE MATERIALIZED VIEW suspicious_transactions AS
 WITH transaction_counts AS (
     SELECT 

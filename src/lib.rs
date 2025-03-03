@@ -1380,5 +1380,3 @@ mod test {
         Ok(())
     }
 }
-
-// 4) NOTE: leave notes on the various mat views and how *good* they are

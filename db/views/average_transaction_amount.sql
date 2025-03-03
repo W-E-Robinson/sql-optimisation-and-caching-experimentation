@@ -1,3 +1,4 @@
+-- write likely outpaces read so not good mat view candidate, but good exercise anyway.
 CREATE MATERIALIZED VIEW average_transaction_amount AS
 SELECT 
     accounts.id AS account_id,
