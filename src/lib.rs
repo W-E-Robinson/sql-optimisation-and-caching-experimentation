@@ -641,7 +641,7 @@ impl BankSystemManager {
 
 #[cfg(test)]
 mod test {
-    use fake::faker::name::raw::FirstName;
+    
     use sqlx::{PgPool, Row};
     use std::time::Instant;
 
