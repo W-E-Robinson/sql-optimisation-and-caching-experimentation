@@ -1,0 +1,27 @@
+name: Testing CI Pipeline
+
+on:
+  pull_request:
+    branches: [ '**' ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install cargo-nextest
+      run: cargo install --locked cargo-nextest
+    - name: Start postgres container
+      run: docker run --rm -d --name test-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=testdb -p 5432:5432 postgres:latest
+    - name: Sleep
+      run: sleep 5
+    - name: Run tests
+      run: DATABASE_URL="postgres://postgres:password@localhost:5432/testdb" cargo nextest run --fail-fast --nocapture
+    - name: Stop postgres container
+      if: always()
+      run: docker stop test-postgres

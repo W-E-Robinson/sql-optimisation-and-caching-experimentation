@@ -1,0 +1,26 @@
+name: Vulnerability Detection CI Pipeline
+
+on:
+  pull_request:
+    branches: [ '**' ]
+  schedule:
+    - cron: "0 12 * * 6"
+
+jobs:
+  scan-image:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build an image from Dockerfile
+        run: |
+          docker build --pull --no-cache -t sql-optimisation-caching-experimenting:${{ github.sha }} .
+      - name: Run Trivy vulnerability scanner on Docker image
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'sql-optimisation-caching-experimenting:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
