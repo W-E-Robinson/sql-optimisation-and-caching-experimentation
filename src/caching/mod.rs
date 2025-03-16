@@ -1,4 +1,3 @@
-use crate::models::user;
 use moka::future::Cache;
 use std::time::Duration;
 
@@ -87,7 +86,7 @@ mod test_account_balance {
         let cache = FinanceCache::new();
         cache.set_account_balance(1, 1000.00).await;
 
-        cache.invalidate_account_balance(&1).await;
+        let _ = cache.invalidate_account_balance(&1).await;
 
         assert_eq!(None, cache.get_account_balance(&1).await)
     }
@@ -131,7 +130,7 @@ mod test_user_outstanding_loans {
         let cache = FinanceCache::new();
         cache.set_user_outstanding_loans(1, 5000.00).await;
 
-        cache.invalidate_user_outstanding_loans(&1).await;
+        let _ = cache.invalidate_user_outstanding_loans(&1).await;
 
         assert_eq!(None, cache.get_user_outstanding_loans(&1).await)
     }
@@ -150,6 +149,3 @@ mod test_user_outstanding_loans {
         );
     }
 }
-
-// NOTE
-// still need to apply all this and do manual invalidation

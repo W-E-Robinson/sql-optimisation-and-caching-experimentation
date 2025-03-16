@@ -1,4 +1,3 @@
-use chrono::{DateTime, Duration, Utc};
 use crate::enums::account_type::AccountType;
 use crate::enums::audit_log_action::AuditLogAction;
 use crate::enums::audit_log_subject_table::AuditLogSubjectTable;
@@ -9,11 +8,6 @@ use crate::enums::payment_status::PaymentStatus;
 use crate::enums::transaction_status::TransactionStatus;
 use crate::enums::transaction_type::TransactionType;
 use crate::enums::transfer_status::TransferStatus;
-use fake::faker::creditcard::en::CreditCardNumber;
-use fake::faker::internet::en::{SafeEmail, Username};
-use fake::faker::name::{en::FirstName, en::LastName};
-use fake::faker::phone_number::en::PhoneNumber;
-use fake::Fake;
 use crate::models::account::AccountRowInsertion;
 use crate::models::card::CardRowInsertion;
 use crate::models::loan::LoanRowInsertion;
@@ -21,6 +15,12 @@ use crate::models::payment::PaymentRowInsertion;
 use crate::models::transaction::TransactionRowInsertion;
 use crate::models::transfer::TransferRowInsertion;
 use crate::models::user::UserRowInsertion;
+use chrono::{DateTime, Duration, Utc};
+use fake::faker::creditcard::en::CreditCardNumber;
+use fake::faker::internet::en::{SafeEmail, Username};
+use fake::faker::name::{en::FirstName, en::LastName};
+use fake::faker::phone_number::en::PhoneNumber;
+use fake::Fake;
 use rand::Rng;
 use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
@@ -638,7 +638,7 @@ impl BankSystemManager {
 
 #[cfg(test)]
 mod test {
-    
+
     use sqlx::{PgPool, Row};
     use std::time::Instant;
 
