@@ -1,3 +1,4 @@
+use crate::models::user;
 use moka::future::Cache;
 use std::time::Duration;
 
