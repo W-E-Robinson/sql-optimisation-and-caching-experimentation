@@ -2,8 +2,7 @@
 
 - [Intro](#intro)
 - [Schema](#schema)
-- [SQL Optimisation](#sql-optimisation)
-- [Caching](#caching)
+- [Testing](#testing)
 
 ## Intro
 This repo was my experimenting with SQL optimisation and code level caching.
@@ -130,8 +129,8 @@ erDiagram
     }
 ```
 
-## SQL Optimisation
-The SQLx cargo package testing functionality is used to test schema data insertion, materialized view vs raw query timings, and some sample queries.
+## Testing
+The SQLx cargo package testing functionality is used to test schema data insertion, materialized view vs raw query timings, and some sample queries. Caching tests are also run.
 To run:
 ```sh
 docker run --rm -d --name test-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=testdb -p 5432:5432 postgres:latest
@@ -142,6 +141,3 @@ DATABASE_URL="postgres://postgres:password@localhost:5432/testdb" cargo nextest 
 ```sh
 docker stop test-postgres
 ```
-
-## Caching
-To do
